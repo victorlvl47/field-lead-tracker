@@ -1,4 +1,3 @@
-// src/app/leads/index.tsx
 import { Link } from "expo-router";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 

@@ -1,4 +1,3 @@
-// src/app/leads/[id].tsx
 import { useLocalSearchParams } from "expo-router";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
