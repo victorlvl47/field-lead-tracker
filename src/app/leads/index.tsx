@@ -1,5 +1,7 @@
-import { Link } from "expo-router";
+import { supabase } from "@/lib/supabase";
+import { Link, useRouter } from "expo-router";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+
 
 const mockLeads = [
   {
@@ -17,6 +19,14 @@ const mockLeads = [
 ];
 
 export default function LeadsScreen() {
+
+  const router = useRouter();
+
+  async function handleSignOut() {
+    await supabase.auth.signOut();
+    router.replace("/login");
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -27,6 +37,9 @@ export default function LeadsScreen() {
             <Text style={styles.addButtonText}>+ New</Text>
           </Pressable>
         </Link>
+        <Pressable style={styles.signOutButton} onPress={handleSignOut}>
+          <Text style={styles.signOutButtonText}>Sign Out</Text>
+        </Pressable>
       </View>
 
       <FlatList
@@ -94,5 +107,21 @@ const styles = StyleSheet.create({
   status: {
     color: "#2563eb",
     fontWeight: "600",
+  },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  signOutButton: {
+    borderWidth: 1,
+    borderColor: "#d4d4d8",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  signOutButtonText: {
+    color: "#52525b",
+    fontWeight: "700",
   },
 });

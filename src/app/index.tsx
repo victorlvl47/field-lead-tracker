@@ -1,28 +1,31 @@
-import { Link } from "expo-router";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useRouter } from "expo-router";
+import { useEffect } from "react";
+import { StyleSheet, Text, View } from "react-native";
 
-export default function HomeScreen() {
+
+import { supabase } from "@/lib/supabase";
+
+
+export default function IndexScreen() {
+  const router = useRouter();
+
+  useEffect(() => {
+    async function checkSession() {
+      const { data } = await supabase.auth.getSession();
+
+      if (data.session) {
+        router.replace("/leads");
+      } else {
+        router.replace("/login");
+      }
+    }
+
+    checkSession();
+  }, [router]);
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Field Lead Tracker</Text>
-
-      <Text style={styles.subtitle}>
-        A small offline-first mobile CRM for field sales teams.
-      </Text>
-
-      <View style={styles.actions}>
-        <Link href="/login" asChild>
-          <Pressable style={styles.primaryButton}>
-            <Text style={styles.primaryButtonText}>Go to Login</Text>
-          </Pressable>
-        </Link>
-
-        <Link href="/leads" asChild>
-          <Pressable style={styles.secondaryButton}>
-            <Text style={styles.secondaryButtonText}>View Leads</Text>
-          </Pressable>
-        </Link>
-      </View>
+      <Text style={styles.text}>Checking session...</Text>
     </View>
   );
 }
@@ -30,46 +33,12 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 24,
+    alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#ffffff",
   },
-  title: {
-    fontSize: 32,
-    fontWeight: "700",
-    textAlign: "center",
-    marginBottom: 12,
-  },
-  subtitle: {
-    fontSize: 16,
-    textAlign: "center",
-    color: "#555555",
-    marginBottom: 32,
-  },
-  actions: {
-    gap: 12,
-  },
-  primaryButton: {
-    backgroundColor: "#2563eb",
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: "center",
-  },
-  primaryButtonText: {
-    color: "#ffffff",
-    fontWeight: "700",
-    fontSize: 16,
-  },
-  secondaryButton: {
-    borderWidth: 1,
-    borderColor: "#2563eb",
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: "center",
-  },
-  secondaryButtonText: {
-    color: "#2563eb",
-    fontWeight: "700",
+  text: {
+    color: "#52525b",
     fontSize: 16,
   },
 });
