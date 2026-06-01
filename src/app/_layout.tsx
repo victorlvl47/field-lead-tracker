@@ -1,51 +1,21 @@
+import { QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 
+import { queryClient } from "@/lib/queryClient";
+
 export default function RootLayout() {
   return (
-    <>
+    <QueryClientProvider client={queryClient}>
       <Stack
         screenOptions={{
           headerTitleAlign: "center",
         }}
       >
-        <Stack.Screen
-          name="index"
-          options={{
-            title: "Field Lead Tracker",
-          }}
-        />
-
-        <Stack.Screen
-          name="login"
-          options={{
-            title: "Login",
-          }}
-        />
-
-        <Stack.Screen
-          name="leads/index"
-          options={{
-            title: "Leads",
-          }}
-        />
-
-        <Stack.Screen
-          name="leads/new"
-          options={{
-            title: "New Lead",
-          }}
-        />
-
-        <Stack.Screen
-          name="leads/[id]"
-          options={{
-            title: "Edit Lead",
-          }}
-        />
+        {/* your Stack.Screen items here */}
       </Stack>
 
       <StatusBar style="auto" />
-    </>
+    </QueryClientProvider>
   );
 }
