@@ -1,10 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
-    createLead,
-    getLeadById,
-    getLeads,
-    updateLead,
+  createLead,
+  getLeadById,
+  getLeads,
+  updateLead,
 } from "./leadService";
 import type { LeadFormValues } from "./leadTypes";
 
