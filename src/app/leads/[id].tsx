@@ -1,32 +1,98 @@
-import { useLocalSearchParams } from "expo-router";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+
+import { LeadForm } from "@/features/leads/LeadForm";
+import {
+  useLeadQuery,
+  useUpdateLeadMutation,
+} from "@/features/leads/leadQueries";
+import type { LeadFormValues } from "@/features/leads/leadTypes";
 
 export default function EditLeadScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
+  const params = useLocalSearchParams<{ id?: string | string[] }>();
+
+  const id = Array.isArray(params.id) ? params.id[0] : params.id;
+
+  const leadQuery = useLeadQuery(id ?? "");
+  const updateLeadMutation = useUpdateLeadMutation(id ?? "");
+
+  async function handleSubmit(values: LeadFormValues) {
+    if (!id) {
+      return;
+    }
+
+    await updateLeadMutation.mutateAsync(values);
+    router.replace("/leads");
+  }
+
+  if (!id) {
+    return (
+      <View style={styles.centeredContainer}>
+        <Text style={styles.errorText}>Missing lead ID.</Text>
+      </View>
+    );
+  }
+
+  if (leadQuery.isLoading) {
+    return (
+      <View style={styles.centeredContainer}>
+        <Text style={styles.messageText}>Loading lead...</Text>
+      </View>
+    );
+  }
+
+  if (leadQuery.isError) {
+    return (
+      <View style={styles.centeredContainer}>
+        <Text style={styles.errorText}>
+          {leadQuery.error instanceof Error
+            ? leadQuery.error.message
+            : "Failed to load lead."}
+        </Text>
+
+        <Pressable style={styles.secondaryButton} onPress={() => leadQuery.refetch()}>
+          <Text style={styles.secondaryButtonText}>Try Again</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  if (!leadQuery.data) {
+    return (
+      <View style={styles.centeredContainer}>
+        <Text style={styles.errorText}>Lead not found.</Text>
+      </View>
+    );
+  }
+
+  const initialValues: LeadFormValues = {
+    name: leadQuery.data.name,
+    company: leadQuery.data.company ?? "",
+    phone: leadQuery.data.phone ?? "",
+    email: leadQuery.data.email ?? "",
+    status: leadQuery.data.status,
+    notes: leadQuery.data.notes ?? "",
+  };
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Edit Lead</Text>
 
-      <Text style={styles.meta}>Lead ID: {id}</Text>
+      {updateLeadMutation.isError ? (
+        <Text style={styles.errorText}>
+          {updateLeadMutation.error instanceof Error
+            ? updateLeadMutation.error.message
+            : "Failed to update lead."}
+        </Text>
+      ) : null}
 
-      <TextInput style={styles.input} placeholder="Lead name" defaultValue="Juan Pérez" />
-      <TextInput
-        style={styles.input}
-        placeholder="Company"
-        defaultValue="Ferretería El Martillo"
+      <LeadForm
+        initialValues={initialValues}
+        submitLabel="Save Changes"
+        isSubmitting={updateLeadMutation.isPending}
+        onSubmit={handleSubmit}
       />
-      <TextInput style={styles.input} placeholder="Phone" keyboardType="phone-pad" />
-      <TextInput style={styles.input} placeholder="Email" keyboardType="email-address" />
-      <TextInput
-        style={[styles.input, styles.notesInput]}
-        placeholder="Notes"
-        multiline
-      />
-
-      <Pressable style={styles.primaryButton}>
-        <Text style={styles.primaryButtonText}>Save Changes</Text>
-      </Pressable>
     </View>
   );
 }
@@ -37,38 +103,37 @@ const styles = StyleSheet.create({
     padding: 20,
     backgroundColor: "#ffffff",
   },
+  centeredContainer: {
+    flex: 1,
+    padding: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#ffffff",
+  },
   title: {
     fontSize: 28,
     fontWeight: "700",
-    marginBottom: 8,
-  },
-  meta: {
-    color: "#71717a",
     marginBottom: 20,
   },
-  input: {
-    borderWidth: 1,
-    borderColor: "#d4d4d8",
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+  messageText: {
+    color: "#52525b",
+    fontSize: 16,
+  },
+  errorText: {
+    color: "#dc2626",
+    fontWeight: "600",
     marginBottom: 12,
-    fontSize: 16,
+    textAlign: "center",
   },
-  notesInput: {
-    minHeight: 100,
-    textAlignVertical: "top",
+  secondaryButton: {
+    borderWidth: 1,
+    borderColor: "#2563eb",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
   },
-  primaryButton: {
-    backgroundColor: "#2563eb",
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: "center",
-    marginTop: 8,
-  },
-  primaryButtonText: {
-    color: "#ffffff",
+  secondaryButtonText: {
+    color: "#2563eb",
     fontWeight: "700",
-    fontSize: 16,
   },
 });
