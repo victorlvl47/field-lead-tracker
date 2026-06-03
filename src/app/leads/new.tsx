@@ -1,23 +1,36 @@
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { useRouter } from "expo-router";
+import { StyleSheet, Text, View } from "react-native";
+
+import { LeadForm } from "@/features/leads/LeadForm";
+import { useCreateLeadMutation } from "@/features/leads/leadQueries";
+import type { LeadFormValues } from "@/features/leads/leadTypes";
 
 export default function NewLeadScreen() {
+  const router = useRouter();
+  const createLeadMutation = useCreateLeadMutation();
+
+  async function handleSubmit(values: LeadFormValues) {
+    await createLeadMutation.mutateAsync(values);
+    router.replace("/leads");
+  }
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Create Lead</Text>
 
-      <TextInput style={styles.input} placeholder="Lead name" />
-      <TextInput style={styles.input} placeholder="Company" />
-      <TextInput style={styles.input} placeholder="Phone" keyboardType="phone-pad" />
-      <TextInput style={styles.input} placeholder="Email" keyboardType="email-address" />
-      <TextInput
-        style={[styles.input, styles.notesInput]}
-        placeholder="Notes"
-        multiline
-      />
+      {createLeadMutation.isError ? (
+        <Text style={styles.errorText}>
+          {createLeadMutation.error instanceof Error
+            ? createLeadMutation.error.message
+            : "Failed to create lead."}
+        </Text>
+      ) : null}
 
-      <Pressable style={styles.primaryButton}>
-        <Text style={styles.primaryButtonText}>Save Lead</Text>
-      </Pressable>
+      <LeadForm
+        submitLabel="Save Lead"
+        isSubmitting={createLeadMutation.isPending}
+        onSubmit={handleSubmit}
+      />
     </View>
   );
 }
@@ -33,29 +46,9 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginBottom: 20,
   },
-  input: {
-    borderWidth: 1,
-    borderColor: "#d4d4d8",
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+  errorText: {
+    color: "#dc2626",
+    fontWeight: "600",
     marginBottom: 12,
-    fontSize: 16,
-  },
-  notesInput: {
-    minHeight: 100,
-    textAlignVertical: "top",
-  },
-  primaryButton: {
-    backgroundColor: "#2563eb",
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: "center",
-    marginTop: 8,
-  },
-  primaryButtonText: {
-    color: "#ffffff",
-    fontWeight: "700",
-    fontSize: 16,
   },
 });
