@@ -17,8 +17,47 @@ export default function EditLeadScreen() {
   const leadQuery = useLeadQuery(id ?? "");
   const updateLeadMutation = useUpdateLeadMutation(id ?? "");
 
+  function normalizeValues(values: LeadFormValues): LeadFormValues {
+    return {
+      name: values.name.trim(),
+      company: values.company.trim(),
+      phone: values.phone.trim(),
+      email: values.email.trim(),
+      status: values.status,
+      notes: values.notes.trim(),
+    };
+  }
+
+  function areValuesEqual(a: LeadFormValues, b: LeadFormValues) {
+    const normalizedA = normalizeValues(a);
+    const normalizedB = normalizeValues(b);
+
+    return (
+      normalizedA.name === normalizedB.name &&
+      normalizedA.company === normalizedB.company &&
+      normalizedA.phone === normalizedB.phone &&
+      normalizedA.email === normalizedB.email &&
+      normalizedA.status === normalizedB.status &&
+      normalizedA.notes === normalizedB.notes
+    );
+  }
+
   async function handleSubmit(values: LeadFormValues) {
-    if (!id) {
+    if (!id || !leadQuery.data) {
+      return;
+    }
+
+    const initialValues: LeadFormValues = {
+      name: leadQuery.data.name,
+      company: leadQuery.data.company ?? "",
+      phone: leadQuery.data.phone ?? "",
+      email: leadQuery.data.email ?? "",
+      status: leadQuery.data.status,
+      notes: leadQuery.data.notes ?? "",
+    };
+
+    if (areValuesEqual(initialValues, values)) {
+      router.replace("/leads");
       return;
     }
 
