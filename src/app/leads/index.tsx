@@ -4,15 +4,66 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  View,
+  TextInput,
+  View
 } from "react-native";
 
 import { useLeadsQuery } from "@/features/leads/leadQueries";
 import { supabase } from "@/lib/supabase";
 
+import {
+  type LeadStatusFilter,
+  useLeadFiltersStore,
+} from "@/store/leadFiltersStore";
+
+const statusFilters: LeadStatusFilter[] = [
+  "all",
+  "new",
+  "contacted",
+  "qualified",
+  "lost",
+];
+
+const statusFilterLabels: Record<LeadStatusFilter, string> = {
+  all: "All",
+  new: "New",
+  contacted: "Contacted",
+  qualified: "Qualified",
+  lost: "Lost",
+};
+
 export default function LeadsScreen() {
   const router = useRouter();
   const { data: leads = [], isLoading, isError, error, refetch } = useLeadsQuery();
+  const searchText = useLeadFiltersStore((state) => state.searchText);
+  const statusFilter = useLeadFiltersStore((state) => state.statusFilter);
+  const setSearchText = useLeadFiltersStore((state) => state.setSearchText);
+  const setStatusFilter = useLeadFiltersStore((state) => state.setStatusFilter);
+  const resetFilters = useLeadFiltersStore((state) => state.resetFilters);
+
+  const normalizedSearch = searchText.trim().toLowerCase();
+
+  const filteredLeads = leads.filter((lead) => {
+    const matchesStatus =
+      statusFilter === "all" || lead.status === statusFilter;
+ 
+    const searchableText = [
+      lead.name,
+      lead.company,
+      lead.phone,
+      lead.email,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+    const matchesSearch =
+      !normalizedSearch || searchableText.includes(normalizedSearch);
+
+    return matchesStatus && matchesSearch;
+  });
+
+  const hasActiveFilters = Boolean(normalizedSearch) || statusFilter !== "all";
 
   async function handleSignOut() {
     await supabase.auth.signOut();
@@ -59,15 +110,62 @@ export default function LeadsScreen() {
         </View>
       </View>
 
+      <View style={styles.filtersContainer}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search leads..."
+          value={searchText}
+          onChangeText={setSearchText}
+          autoCapitalize="none"
+        />
+
+        <View style={styles.statusFiltersRow}>
+          {statusFilters.map((status) => {
+            const isSelected = statusFilter === status;
+
+            return (
+              <Pressable
+                key={status}
+                style={[
+                  styles.statusFilterButton,
+                  isSelected && styles.selectedStatusFilterButton,
+                ]}
+                onPress={() => setStatusFilter(status)}
+              >
+                <Text
+                  style={[
+                    styles.statusFilterText,
+                    isSelected && styles.selectedStatusFilterText,
+                  ]}
+                >
+                  {statusFilterLabels[status]}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        {hasActiveFilters ? (
+          <Pressable style={styles.clearFiltersButton} onPress={resetFilters}>
+            <Text style={styles.clearFiltersText}>Clear filters</Text>
+          </Pressable>
+        ) : null}
+      </View>
+
       <FlatList
-        data={leads}
+        data={filteredLeads}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
         ListEmptyComponent={
           <View style={styles.emptyState}>
-            <Text style={styles.emptyTitle}>No leads yet</Text>
+            <Text style={styles.emptyTitle}>
+              {hasActiveFilters ? "No matching leads" : "No leads yet"}
+            </Text>
+
             <Text style={styles.emptyText}>
-              Create your first lead to test the Supabase connection.
+              {hasActiveFilters
+                ? "Try changing your search or status filter."
+                : "Create your first lead to test the Supabase connection."}
             </Text>
           </View>
         }
@@ -202,6 +300,49 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   secondaryButtonText: {
+    color: "#2563eb",
+    fontWeight: "700",
+  },
+  filtersContainer: {
+    gap: 12,
+    marginBottom: 16,
+  },
+  searchInput: {
+    borderWidth: 1,
+    borderColor: "#d4d4d8",
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 16,
+  },
+  statusFiltersRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  statusFilterButton: {
+    borderWidth: 1,
+    borderColor: "#d4d4d8",
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  selectedStatusFilterButton: {
+    backgroundColor: "#2563eb",
+    borderColor: "#2563eb",
+  },
+  statusFilterText: {
+    color: "#52525b",
+    fontWeight: "600",
+  },
+  selectedStatusFilterText: {
+    color: "#ffffff",
+  },
+  clearFiltersButton: {
+    alignSelf: "flex-start",
+    paddingVertical: 4,
+  },
+  clearFiltersText: {
     color: "#2563eb",
     fontWeight: "700",
   },
