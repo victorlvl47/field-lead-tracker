@@ -1,56 +1,268 @@
-# Welcome to your Expo app 👋
+# Field Lead Tracker
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A mobile lead tracking app built with React Native and Expo, designed to work offline.
 
-## Get started
+This project is a small demo app for field sales or field marketing teams. The goal is to build a realistic mobile app foundation with authentication, lead management, Supabase integration, and a clean path toward offline-first sync.
 
-1. Install dependencies
+## Current Scope
 
-   ```bash
-   npm install
-   ```
+implements the online foundation:
 
-2. Start the app
+* Expo Router navigation
+* Supabase authentication
+* User sign up and sign in
+* Session-based redirects
+* Leads table in Supabase
+* Row-Level Security policies
+* Lead list screen
+* Create lead screen
+* Edit lead screen
+* TanStack Query for Supabase/server data
+* Zustand for local UI state
+* Search and status filters
+* Skip unchanged lead updates
 
-   ```bash
-   npx expo start
-   ```
+## Tech Stack
 
-In the output, you'll find options to open the app in a
+* React Native
+* Expo
+* Expo Router
+* TypeScript
+* Supabase
+* TanStack Query
+* Zustand
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## App Features
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+### Authentication
 
-## Get a fresh project
+Users can:
 
-When you're ready, run:
+* Create an account
+* Confirm their email
+* Sign in
+* Sign out
+* Stay logged in through Supabase session persistence
 
-```bash
-npm run reset-project
+### Lead Management
+
+Users can:
+
+* View their leads
+* Create a new lead
+* Edit an existing lead
+* Search leads
+* Filter leads by status
+
+Lead statuses:
+
+* New
+* Contacted
+* Qualified
+* Lost
+
+### Data Ownership
+
+Each lead belongs to one authenticated user.
+
+Supabase Row-Level Security makes sure users can only access their own leads.
+
+## Architecture Notes
+
+The app separates responsibilities like this:
+
+```txt
+Supabase = authentication and database
+TanStack Query = remote/server data fetching and caching
+Zustand = small local UI state
+Expo Router = navigation and screen routing
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Lead data is not stored in Zustand.
 
-### Other setup steps
+Lead data comes from Supabase and is managed through TanStack Query.
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+Zustand is only used for local UI state such as:
 
-## Learn more
+* Search text
+* Selected status filter
+* Reset filters action
 
-To learn more about developing your project with Expo, look at the following resources:
+This keeps the data flow clean and avoids duplicating server data in global state.
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+## Project Structure
 
-## Join the community
+```txt
+src/
+  app/
+    _layout.tsx
+    index.tsx
+    login.tsx
+    leads/
+      index.tsx
+      new.tsx
+      [id].tsx
 
-Join our community of developers creating universal apps.
+  features/
+    leads/
+      LeadForm.tsx
+      leadQueries.ts
+      leadService.ts
+      leadTypes.ts
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+  lib/
+    queryClient.ts
+    supabase.ts
+
+  store/
+    leadFiltersStore.ts
+```
+
+## Environment Variables
+
+Create a `.env` file in the project root:
+
+```env
+EXPO_PUBLIC_SUPABASE_URL=your_supabase_project_url
+EXPO_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_or_publishable_key
+```
+
+The `.env` file should not be committed.
+
+Use `.env.example` to document the required variables.
+
+## Supabase Setup
+
+The app uses a `leads` table.
+
+Basic table shape:
+
+```sql
+create table leads (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+
+  name text not null,
+  company text,
+  phone text,
+  email text,
+  status text not null default 'new',
+  notes text,
+
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+```
+
+Enable Row-Level Security:
+
+```sql
+alter table leads enable row level security;
+```
+
+Policies:
+
+```sql
+create policy "Users can read their own leads"
+on public.leads for select
+using (auth.uid() = user_id);
+
+create policy "Users can insert their own leads"
+on public.leads for insert
+with check (auth.uid() = user_id);
+
+create policy "Users can update their own leads"
+on public.leads for update
+using (auth.uid() = user_id)
+with check (auth.uid() = user_id);
+
+create policy "Users can delete their own leads"
+on public.leads for delete
+using (auth.uid() = user_id);
+```
+
+If automatic table exposure is disabled in Supabase, grant access to the authenticated role:
+
+```sql
+grant usage on schema public to authenticated;
+
+grant select, insert, update, delete
+on table public.leads
+to authenticated;
+```
+
+## Running the Project
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Start the Expo dev server:
+
+```bash
+npx expo start
+```
+
+Run on web:
+
+```bash
+npm run web
+```
+
+Run TypeScript checks:
+
+```bash
+npx tsc --noEmit
+```
+
+## Current Flow
+
+```txt
+Open app
+Sign in or create account
+Go to leads list
+Create a lead
+Edit the lead
+Search/filter leads
+Sign out
+```
+
+## Current Progress
+
+Completed:
+
+* Project setup
+* Expo Router routes
+* Supabase client
+* Supabase Auth
+* Leads table
+* RLS policies
+* TanStack Query setup
+* Remote leads list
+* Create lead flow
+* Edit lead flow
+* Zustand filters
+* Basic app polish
+
+## Next Phase
+
+focus on offline-first functionality:
+
+* Local SQLite database
+* Saving leads locally
+* Reading leads from local storage
+* Basic offline support
+* Preparing for sync queue architecture
+
+Future phases will add:
+
+* Pending sync queue
+* Sync when internet returns
+* Conflict detection
+* Supabase Edge Function
+* Simulated CRM integration
+* Error tracking
+* Testing
+* EAS build profiles
