@@ -8,7 +8,14 @@ import {
   View
 } from "react-native";
 
-import { useLeadsQuery } from "@/features/leads/leadQueries";
+import { useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+
+import { syncRemoteLeadsToLocal } from "@/db/leadLocalSync";
+import {
+  localLeadKeys,
+  useLocalLeadsQuery,
+} from "@/features/leads/leadLocalQueries";
 import { supabase } from "@/lib/supabase";
 
 import {
@@ -34,7 +41,42 @@ const statusFilterLabels: Record<LeadStatusFilter, string> = {
 
 export default function LeadsScreen() {
   const router = useRouter();
-  const { data: leads = [], isLoading, isError, error, refetch } = useLeadsQuery();
+  const queryClient = useQueryClient();
+
+  const [userId, setUserId] = useState<string | null>(null);
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
+  const [isRefreshingRemote, setIsRefreshingRemote] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadSession() {
+      const { data, error } = await supabase.auth.getSession();
+
+      if (error) {
+        console.error("Failed to get session", error);
+      }
+
+      if (isMounted) {
+        setUserId(data.session?.user.id ?? null);
+        setIsCheckingSession(false);
+      }
+    }
+
+    loadSession();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const {
+    data: leads = [],
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useLocalLeadsQuery(userId);
   const searchText = useLeadFiltersStore((state) => state.searchText);
   const statusFilter = useLeadFiltersStore((state) => state.statusFilter);
   const setSearchText = useLeadFiltersStore((state) => state.setSearchText);
@@ -70,7 +112,27 @@ export default function LeadsScreen() {
     router.replace("/login");
   }
 
-  if (isLoading) {
+  async function handleRefreshFromSupabase() {
+    if (!userId) {
+      return;
+    }
+
+    try {
+      setIsRefreshingRemote(true);
+
+      await syncRemoteLeadsToLocal();
+
+      await queryClient.invalidateQueries({
+        queryKey: localLeadKeys.list(userId),
+      });
+    } catch (error) {
+      console.error("Failed to refresh local leads", error);
+    } finally {
+      setIsRefreshingRemote(false);
+    }
+  }
+
+  if (isCheckingSession || isLoading) {
     return (
       <View style={styles.centeredContainer}>
         <Text style={styles.messageText}>Loading leads...</Text>
@@ -98,6 +160,17 @@ export default function LeadsScreen() {
         <Text style={styles.title}>Leads</Text>
 
         <View style={styles.headerActions}>
+
+          <Pressable
+            style={styles.secondaryButton}
+            onPress={handleRefreshFromSupabase}
+            disabled={isRefreshingRemote}
+          >
+            <Text style={styles.secondaryButtonText}>
+              {isRefreshingRemote ? "Refreshing..." : "Refresh"}
+            </Text>
+          </Pressable>
+
           <Link href="/leads/new" asChild>
             <Pressable style={styles.addButton}>
               <Text style={styles.addButtonText}>+ New</Text>
