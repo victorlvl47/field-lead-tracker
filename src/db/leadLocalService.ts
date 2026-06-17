@@ -1,5 +1,6 @@
 import { getDatabase } from "@/db/database";
 import type { LeadStatus } from "@/features/leads/leadTypes";
+import * as Crypto from "expo-crypto";
 
 export type LocalSyncStatus = "synced" | "pending_create" | "pending_update";
 
@@ -49,11 +50,7 @@ export type UpdateLocalLeadInput = {
 };
 
 function createLocalId() {
-  if (globalThis.crypto?.randomUUID) {
-    return globalThis.crypto.randomUUID();
-  }
-
-  return `local_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  return Crypto.randomUUID();
 }
 
 export async function getLocalLeads(userId: string) {

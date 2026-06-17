@@ -1,34 +1,102 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import { StyleSheet, Text, View } from "react-native";
+import { useState } from "react";
+import { Platform, StyleSheet, Text, View } from "react-native";
 
+import { createLocalLead } from "@/db/leadLocalService";
 import { LeadForm } from "@/features/leads/LeadForm";
+import { localLeadKeys } from "@/features/leads/leadLocalQueries";
 import { useCreateLeadMutation } from "@/features/leads/leadQueries";
 import type { LeadFormValues } from "@/features/leads/leadTypes";
+import { supabase } from "@/lib/supabase";
 
 export default function NewLeadScreen() {
   const router = useRouter();
+  const queryClient = useQueryClient();
+
   const createLeadMutation = useCreateLeadMutation();
 
+  const [isSubmittingLocal, setIsSubmittingLocal] = useState(false);
+  const [localErrorMessage, setLocalErrorMessage] = useState<string | null>(
+    null,
+  );
+
+  const isSubmitting =
+    Platform.OS === "web"
+      ? createLeadMutation.isPending
+      : isSubmittingLocal;
+
+  const errorMessage =
+    Platform.OS === "web"
+      ? createLeadMutation.error instanceof Error
+        ? createLeadMutation.error.message
+        : createLeadMutation.isError
+          ? "Failed to create lead."
+          : null
+      : localErrorMessage;
+
   async function handleSubmit(values: LeadFormValues) {
-    await createLeadMutation.mutateAsync(values);
-    router.replace("/leads");
+    if (Platform.OS === "web") {
+      await createLeadMutation.mutateAsync(values);
+      router.replace("/leads");
+      return;
+    }
+
+    try {
+      setIsSubmittingLocal(true);
+      setLocalErrorMessage(null);
+
+      const { data, error } = await supabase.auth.getSession();
+
+      if (error) {
+        throw error;
+      }
+
+      const userId = data.session?.user.id;
+
+      if (!userId) {
+        throw new Error("You must be signed in to create a lead.");
+      }
+
+      await createLocalLead({
+        user_id: userId,
+
+        name: values.name,
+        company: values.company || null,
+        phone: values.phone || null,
+        email: values.email || null,
+        status: values.status,
+        notes: values.notes || null,
+
+        sync_status: "pending_create",
+        last_synced_at: null,
+      });
+
+      await queryClient.invalidateQueries({
+        queryKey: localLeadKeys.list(userId),
+      });
+
+      router.replace("/leads");
+    } catch (error) {
+      setLocalErrorMessage(
+        error instanceof Error ? error.message : "Failed to create lead.",
+      );
+    } finally {
+      setIsSubmittingLocal(false);
+    }
   }
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Create Lead</Text>
 
-      {createLeadMutation.isError ? (
-        <Text style={styles.errorText}>
-          {createLeadMutation.error instanceof Error
-            ? createLeadMutation.error.message
-            : "Failed to create lead."}
-        </Text>
+      {errorMessage ? (
+        <Text style={styles.errorText}>{errorMessage}</Text>
       ) : null}
 
       <LeadForm
         submitLabel="Save Lead"
-        isSubmitting={createLeadMutation.isPending}
+        isSubmitting={isSubmitting}
         onSubmit={handleSubmit}
       />
     </View>
