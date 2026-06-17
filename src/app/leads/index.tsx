@@ -1,6 +1,7 @@
 import { Link, useRouter } from "expo-router";
 import {
   FlatList,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -11,6 +12,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
+import { getDebugLocalLeads, type LocalLead } from "@/db/leadLocalService";
 import { syncRemoteLeadsToLocal } from "@/db/leadLocalSync";
 import {
   localLeadKeys,
@@ -38,6 +40,10 @@ const statusFilterLabels: Record<LeadStatusFilter, string> = {
   qualified: "Qualified",
   lost: "Lost",
 };
+
+// Expo only exposes environment variables prefixed with EXPO_PUBLIC_ to client code.
+const shouldDisplayDebugTools =
+  process.env.EXPO_PUBLIC_DISPLAY_DEBUG_TOOLS === "true";
 
 export default function LeadsScreen() {
   const router = useRouter();
@@ -85,10 +91,10 @@ export default function LeadsScreen() {
 
   const normalizedSearch = searchText.trim().toLowerCase();
 
-  const filteredLeads = leads.filter((lead) => {
+  const filteredLeads = leads.filter((lead: LocalLead) => {
     const matchesStatus =
       statusFilter === "all" || lead.status === statusFilter;
- 
+
     const searchableText = [
       lead.name,
       lead.company,
@@ -129,6 +135,22 @@ export default function LeadsScreen() {
       console.error("Failed to refresh local leads", error);
     } finally {
       setIsRefreshingRemote(false);
+    }
+  }
+
+  // Temporary development-only tooling for Week 2 SQLite/offline testing.
+  async function handlePrintLocalSQLiteLeads() {
+    if (Platform.OS === "web") {
+      console.log("SQLite local database is not available on web.");
+      return;
+    }
+
+    try {
+      const localLeads = await getDebugLocalLeads();
+
+      console.log("Local SQLite leads", localLeads);
+    } catch (error) {
+      console.error("Failed to print local SQLite leads", error);
     }
   }
 
@@ -224,6 +246,22 @@ export default function LeadsScreen() {
           </Pressable>
         ) : null}
       </View>
+
+      {shouldDisplayDebugTools ? (
+        // Temporary development-only tooling for Week 2 SQLite/offline testing.
+        <View style={styles.debugToolsContainer}>
+          <Text style={styles.debugToolsTitle}>Debug Tools</Text>
+
+          <Pressable
+            style={styles.debugButton}
+            onPress={handlePrintLocalSQLiteLeads}
+          >
+            <Text style={styles.debugButtonText}>
+              Print Local SQLite Leads
+            </Text>
+          </Pressable>
+        </View>
+      ) : null}
 
       <FlatList
         data={filteredLeads}
@@ -417,6 +455,30 @@ const styles = StyleSheet.create({
   },
   clearFiltersText: {
     color: "#2563eb",
+    fontWeight: "700",
+  },
+  debugToolsContainer: {
+    borderWidth: 1,
+    borderColor: "#d4d4d8",
+    borderRadius: 8,
+    gap: 8,
+    marginBottom: 16,
+    padding: 12,
+  },
+  debugToolsTitle: {
+    color: "#18181b",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  debugButton: {
+    alignSelf: "flex-start",
+    backgroundColor: "#18181b",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  debugButtonText: {
+    color: "#ffffff",
     fontWeight: "700",
   },
 });

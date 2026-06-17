@@ -1,0 +1,194 @@
+diff --git a/.env.example b/.env.example
+index acf2e69..bb34570 100644
+--- a/.env.example
++++ b/.env.example
+@@ -1,2 +1,6 @@
+ EXPO_PUBLIC_SUPABASE_URL=your_supabase_project_url
+-EXPO_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_or_publishable_key
+\ No newline at end of file
++EXPO_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_or_publishable_key
++
++# Set to true to show local development debug buttons in the app.
++# Useful for inspecting SQLite data while building offline support.
++EXPO_PUBLIC_DISPLAY_DEBUG_TOOLS=false
+diff --git a/src/app/leads/index.tsx b/src/app/leads/index.tsx
+index f8c7c3e..a38b796 100644
+--- a/src/app/leads/index.tsx
++++ b/src/app/leads/index.tsx
+@@ -1,6 +1,7 @@
+ import { Link, useRouter } from "expo-router";
+ import {
+   FlatList,
++  Platform,
+   Pressable,
+   StyleSheet,
+   Text,
+@@ -11,6 +12,7 @@ import {
+ import { useQueryClient } from "@tanstack/react-query";
+ import { useEffect, useState } from "react";
+ 
++import { getDebugLocalLeads, type LocalLead } from "@/db/leadLocalService";
+ import { syncRemoteLeadsToLocal } from "@/db/leadLocalSync";
+ import {
+   localLeadKeys,
+@@ -39,6 +41,10 @@ const statusFilterLabels: Record<LeadStatusFilter, string> = {
+   lost: "Lost",
+ };
+ 
++// Expo only exposes environment variables prefixed with EXPO_PUBLIC_ to client code.
++const shouldDisplayDebugTools =
++  process.env.EXPO_PUBLIC_DISPLAY_DEBUG_TOOLS === "true";
++
+ export default function LeadsScreen() {
+   const router = useRouter();
+   const queryClient = useQueryClient();
+@@ -85,10 +91,10 @@ export default function LeadsScreen() {
+ 
+   const normalizedSearch = searchText.trim().toLowerCase();
+ 
+-  const filteredLeads = leads.filter((lead) => {
++  const filteredLeads = leads.filter((lead: LocalLead) => {
+     const matchesStatus =
+       statusFilter === "all" || lead.status === statusFilter;
+- 
++
+     const searchableText = [
+       lead.name,
+       lead.company,
+@@ -132,6 +138,22 @@ export default function LeadsScreen() {
+     }
+   }
+ 
++  // Temporary development-only tooling for Week 2 SQLite/offline testing.
++  async function handlePrintLocalSQLiteLeads() {
++    if (Platform.OS === "web") {
++      console.log("SQLite local database is not available on web.");
++      return;
++    }
++
++    try {
++      const localLeads = await getDebugLocalLeads();
++
++      console.log("Local SQLite leads", localLeads);
++    } catch (error) {
++      console.error("Failed to print local SQLite leads", error);
++    }
++  }
++
+   if (isCheckingSession || isLoading) {
+     return (
+       <View style={styles.centeredContainer}>
+@@ -225,6 +247,22 @@ export default function LeadsScreen() {
+         ) : null}
+       </View>
+ 
++      {shouldDisplayDebugTools ? (
++        // Temporary development-only tooling for Week 2 SQLite/offline testing.
++        <View style={styles.debugToolsContainer}>
++          <Text style={styles.debugToolsTitle}>Debug Tools</Text>
++
++          <Pressable
++            style={styles.debugButton}
++            onPress={handlePrintLocalSQLiteLeads}
++          >
++            <Text style={styles.debugButtonText}>
++              Print Local SQLite Leads
++            </Text>
++          </Pressable>
++        </View>
++      ) : null}
++
+       <FlatList
+         data={filteredLeads}
+         keyExtractor={(item) => item.id}
+@@ -419,4 +457,28 @@ const styles = StyleSheet.create({
+     color: "#2563eb",
+     fontWeight: "700",
+   },
+-});
+\ No newline at end of file
++  debugToolsContainer: {
++    borderWidth: 1,
++    borderColor: "#d4d4d8",
++    borderRadius: 8,
++    gap: 8,
++    marginBottom: 16,
++    padding: 12,
++  },
++  debugToolsTitle: {
++    color: "#18181b",
++    fontSize: 14,
++    fontWeight: "700",
++  },
++  debugButton: {
++    alignSelf: "flex-start",
++    backgroundColor: "#18181b",
++    borderRadius: 8,
++    paddingHorizontal: 12,
++    paddingVertical: 10,
++  },
++  debugButtonText: {
++    color: "#ffffff",
++    fontWeight: "700",
++  },
++});
+diff --git a/src/db/leadLocalService.ts b/src/db/leadLocalService.ts
+index 36800fb..996b292 100644
+--- a/src/db/leadLocalService.ts
++++ b/src/db/leadLocalService.ts
+@@ -22,6 +22,19 @@ export type LocalLead = {
+   last_synced_at: string | null;
+ };
+ 
++export type DebugLocalLeadRow = Pick<
++  LocalLead,
++  | "id"
++  | "user_id"
++  | "name"
++  | "company"
++  | "status"
++  | "sync_status"
++  | "last_synced_at"
++  | "created_at"
++  | "updated_at"
++>;
++
+ export type CreateLocalLeadInput = {
+   id?: string;
+   user_id: string;
+@@ -67,6 +80,28 @@ export async function getLocalLeads(userId: string) {
+   );
+ }
+ 
++// Temporary development-only query for Week 2 SQLite/offline testing.
++export async function getDebugLocalLeads() {
++  const db = await getDatabase();
++
++  return db.getAllAsync<DebugLocalLeadRow>(
++    `
++      SELECT
++        id,
++        user_id,
++        name,
++        company,
++        status,
++        sync_status,
++        last_synced_at,
++        created_at,
++        updated_at
++      FROM leads
++      ORDER BY updated_at DESC;
++    `,
++  );
++}
++
+ export async function getLocalLeadById(id: string, userId: string) {
+   const db = await getDatabase();
+ 
+@@ -191,4 +226,4 @@ export async function updateLocalLead(input: UpdateLocalLeadInput) {
+   await upsertLocalLead(updatedLead);
+ 
+   return updatedLead;
+-}
+\ No newline at end of file
++}

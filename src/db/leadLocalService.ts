@@ -22,6 +22,19 @@ export type LocalLead = {
   last_synced_at: string | null;
 };
 
+export type DebugLocalLeadRow = Pick<
+  LocalLead,
+  | "id"
+  | "user_id"
+  | "name"
+  | "company"
+  | "status"
+  | "sync_status"
+  | "last_synced_at"
+  | "created_at"
+  | "updated_at"
+>;
+
 export type CreateLocalLeadInput = {
   id?: string;
   user_id: string;
@@ -64,6 +77,28 @@ export async function getLocalLeads(userId: string) {
       ORDER BY updated_at DESC;
     `,
     [userId],
+  );
+}
+
+// Temporary development-only query for Week 2 SQLite/offline testing.
+export async function getDebugLocalLeads() {
+  const db = await getDatabase();
+
+  return db.getAllAsync<DebugLocalLeadRow>(
+    `
+      SELECT
+        id,
+        user_id,
+        name,
+        company,
+        status,
+        sync_status,
+        last_synced_at,
+        created_at,
+        updated_at
+      FROM leads
+      ORDER BY updated_at DESC;
+    `,
   );
 }
 
