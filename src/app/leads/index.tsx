@@ -19,6 +19,7 @@ import {
   useLocalLeadsQuery,
 } from "@/features/leads/leadLocalQueries";
 import { useLeadsQuery } from "@/features/leads/leadQueries";
+import { getLeads } from "@/features/leads/leadService";
 import type { Lead } from "@/features/leads/leadTypes";
 import { supabase } from "@/lib/supabase";
 
@@ -46,6 +47,17 @@ const statusFilterLabels: Record<LeadStatusFilter, string> = {
 // Expo only exposes environment variables prefixed with EXPO_PUBLIC_ to client code.
 const shouldDisplayDebugTools =
   process.env.EXPO_PUBLIC_DISPLAY_DEBUG_TOOLS === "true";
+
+// Read-only debug tooling for comparing local SQLite data with remote Supabase data.
+async function handlePrintSupabaseLeads() {
+  try {
+    const remoteLeads = await getLeads();
+
+    console.log("Supabase leads", remoteLeads);
+  } catch (error) {
+    console.error("Failed to print Supabase leads", error);
+  }
+}
 
 export default function LeadsScreen() {
   if (Platform.OS === "web") {
@@ -83,6 +95,9 @@ function WebLeadsScreen() {
       }}
       isRefreshing={isFetching}
       onPrintLocalSQLiteLeads={handlePrintLocalSQLiteLeads}
+      onPrintSupabaseLeads={() => {
+        void handlePrintSupabaseLeads();
+      }}
     />
   );
 }
@@ -171,6 +186,9 @@ function NativeLeadsScreen() {
       onPrintLocalSQLiteLeads={() => {
         void handlePrintLocalSQLiteLeads();
       }}
+      onPrintSupabaseLeads={() => {
+        void handlePrintSupabaseLeads();
+      }}
     />
   );
 }
@@ -189,6 +207,7 @@ type LeadsListProps = {
   onRefresh: () => void;
   isRefreshing: boolean;
   onPrintLocalSQLiteLeads: () => void;
+  onPrintSupabaseLeads: () => void;
 };
 
 function LeadsList({
@@ -200,6 +219,7 @@ function LeadsList({
   onRefresh,
   isRefreshing,
   onPrintLocalSQLiteLeads,
+  onPrintSupabaseLeads,
 }: LeadsListProps) {
   const router = useRouter();
   const searchText = useLeadFiltersStore((state) => state.searchText);
@@ -341,6 +361,13 @@ function LeadsList({
             <Text style={styles.debugButtonText}>
               Print Local SQLite Leads
             </Text>
+          </Pressable>
+
+          <Pressable
+            style={styles.debugButton}
+            onPress={onPrintSupabaseLeads}
+          >
+            <Text style={styles.debugButtonText}>Print Supabase Leads</Text>
           </Pressable>
         </View>
       ) : null}
