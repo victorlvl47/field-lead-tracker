@@ -14,11 +14,15 @@ export async function syncRemoteLeadsToLocal() {
 
   const remoteLeads = await getLeads();
   const now = new Date().toISOString();
+  let cachedCount = 0;
+  let skippedCount = 0;
 
   for (const lead of remoteLeads) {
     const existingLocalLead = await getLocalLeadById(lead.id, lead.user_id);
 
     if (existingLocalLead && existingLocalLead.sync_status !== "synced") {
+      skippedCount += 1;
+
       console.log(
         "Skipping remote cache for pending local lead",
         existingLocalLead.id,
@@ -45,9 +49,13 @@ export async function syncRemoteLeadsToLocal() {
       sync_status: "synced",
       last_synced_at: now,
     });
+
+    cachedCount += 1;
   }
 
-  console.log(`Cached ${remoteLeads.length} remote leads in SQLite`);
+  console.log(
+    `Cached ${cachedCount} remote leads in SQLite. Skipped ${skippedCount} pending local leads.`,
+  );
 
   return remoteLeads;
 }
