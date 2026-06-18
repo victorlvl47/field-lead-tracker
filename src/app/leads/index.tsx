@@ -6,18 +6,20 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  View
+  View,
 } from "react-native";
 
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
-import { getDebugLocalLeads, type LocalLead } from "@/db/leadLocalService";
+import { getDebugLocalLeads } from "@/db/leadLocalService";
 import { syncRemoteLeadsToLocal } from "@/db/leadLocalSync";
 import {
   localLeadKeys,
   useLocalLeadsQuery,
 } from "@/features/leads/leadLocalQueries";
+import { useLeadsQuery } from "@/features/leads/leadQueries";
+import type { Lead } from "@/features/leads/leadTypes";
 import { supabase } from "@/lib/supabase";
 
 import {
@@ -46,7 +48,46 @@ const shouldDisplayDebugTools =
   process.env.EXPO_PUBLIC_DISPLAY_DEBUG_TOOLS === "true";
 
 export default function LeadsScreen() {
-  const router = useRouter();
+  if (Platform.OS === "web") {
+    return <WebLeadsScreen />;
+  }
+
+  return <NativeLeadsScreen />;
+}
+
+function WebLeadsScreen() {
+  const {
+    data: leads = [],
+    isLoading,
+    isError,
+    error,
+    refetch,
+    isFetching,
+  } = useLeadsQuery();
+
+  function handlePrintLocalSQLiteLeads() {
+    console.log("SQLite local database is not available on web.");
+  }
+
+  return (
+    <LeadsList
+      leads={leads}
+      isLoading={isLoading}
+      isError={isError}
+      error={error}
+      onRetry={() => {
+        void refetch();
+      }}
+      onRefresh={() => {
+        void refetch();
+      }}
+      isRefreshing={isFetching}
+      onPrintLocalSQLiteLeads={handlePrintLocalSQLiteLeads}
+    />
+  );
+}
+
+function NativeLeadsScreen() {
   const queryClient = useQueryClient();
 
   const [userId, setUserId] = useState<string | null>(null);
@@ -83,6 +124,84 @@ export default function LeadsScreen() {
     error,
     refetch,
   } = useLocalLeadsQuery(userId);
+
+  async function handleRefreshFromSupabase() {
+    if (!userId) {
+      return;
+    }
+
+    try {
+      setIsRefreshingRemote(true);
+
+      await syncRemoteLeadsToLocal();
+
+      await queryClient.invalidateQueries({
+        queryKey: localLeadKeys.list(userId),
+      });
+    } catch (error) {
+      console.error("Failed to refresh local leads", error);
+    } finally {
+      setIsRefreshingRemote(false);
+    }
+  }
+
+  async function handlePrintLocalSQLiteLeads() {
+    try {
+      const localLeads = await getDebugLocalLeads();
+
+      console.log("Local SQLite leads", localLeads);
+    } catch (error) {
+      console.error("Failed to print local SQLite leads", error);
+    }
+  }
+
+  return (
+    <LeadsList
+      leads={leads}
+      isLoading={isCheckingSession || isLoading}
+      isError={isError}
+      error={error}
+      onRetry={() => {
+        void refetch();
+      }}
+      onRefresh={() => {
+        void handleRefreshFromSupabase();
+      }}
+      isRefreshing={isRefreshingRemote}
+      onPrintLocalSQLiteLeads={() => {
+        void handlePrintLocalSQLiteLeads();
+      }}
+    />
+  );
+}
+
+type LeadListItem = Pick<
+  Lead,
+  "id" | "name" | "company" | "phone" | "email" | "status"
+>;
+
+type LeadsListProps = {
+  leads: LeadListItem[];
+  isLoading: boolean;
+  isError: boolean;
+  error: unknown;
+  onRetry: () => void;
+  onRefresh: () => void;
+  isRefreshing: boolean;
+  onPrintLocalSQLiteLeads: () => void;
+};
+
+function LeadsList({
+  leads,
+  isLoading,
+  isError,
+  error,
+  onRetry,
+  onRefresh,
+  isRefreshing,
+  onPrintLocalSQLiteLeads,
+}: LeadsListProps) {
+  const router = useRouter();
   const searchText = useLeadFiltersStore((state) => state.searchText);
   const statusFilter = useLeadFiltersStore((state) => state.statusFilter);
   const setSearchText = useLeadFiltersStore((state) => state.setSearchText);
@@ -91,7 +210,7 @@ export default function LeadsScreen() {
 
   const normalizedSearch = searchText.trim().toLowerCase();
 
-  const filteredLeads = leads.filter((lead: LocalLead) => {
+  const filteredLeads = leads.filter((lead) => {
     const matchesStatus =
       statusFilter === "all" || lead.status === statusFilter;
 
@@ -118,43 +237,7 @@ export default function LeadsScreen() {
     router.replace("/login");
   }
 
-  async function handleRefreshFromSupabase() {
-    if (!userId) {
-      return;
-    }
-
-    try {
-      setIsRefreshingRemote(true);
-
-      await syncRemoteLeadsToLocal();
-
-      await queryClient.invalidateQueries({
-        queryKey: localLeadKeys.list(userId),
-      });
-    } catch (error) {
-      console.error("Failed to refresh local leads", error);
-    } finally {
-      setIsRefreshingRemote(false);
-    }
-  }
-
-  // Temporary development-only tooling for Week 2 SQLite/offline testing.
-  async function handlePrintLocalSQLiteLeads() {
-    if (Platform.OS === "web") {
-      console.log("SQLite local database is not available on web.");
-      return;
-    }
-
-    try {
-      const localLeads = await getDebugLocalLeads();
-
-      console.log("Local SQLite leads", localLeads);
-    } catch (error) {
-      console.error("Failed to print local SQLite leads", error);
-    }
-  }
-
-  if (isCheckingSession || isLoading) {
+  if (isLoading) {
     return (
       <View style={styles.centeredContainer}>
         <Text style={styles.messageText}>Loading leads...</Text>
@@ -169,7 +252,7 @@ export default function LeadsScreen() {
           {error instanceof Error ? error.message : "Failed to load leads."}
         </Text>
 
-        <Pressable style={styles.secondaryButton} onPress={() => refetch()}>
+        <Pressable style={styles.secondaryButton} onPress={onRetry}>
           <Text style={styles.secondaryButtonText}>Try Again</Text>
         </Pressable>
       </View>
@@ -182,14 +265,13 @@ export default function LeadsScreen() {
         <Text style={styles.title}>Leads</Text>
 
         <View style={styles.headerActions}>
-
           <Pressable
             style={styles.secondaryButton}
-            onPress={handleRefreshFromSupabase}
-            disabled={isRefreshingRemote}
+            onPress={onRefresh}
+            disabled={isRefreshing}
           >
             <Text style={styles.secondaryButtonText}>
-              {isRefreshingRemote ? "Refreshing..." : "Refresh"}
+              {isRefreshing ? "Refreshing..." : "Refresh"}
             </Text>
           </Pressable>
 
@@ -254,7 +336,7 @@ export default function LeadsScreen() {
 
           <Pressable
             style={styles.debugButton}
-            onPress={handlePrintLocalSQLiteLeads}
+            onPress={onPrintLocalSQLiteLeads}
           >
             <Text style={styles.debugButtonText}>
               Print Local SQLite Leads
