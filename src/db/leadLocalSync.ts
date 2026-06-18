@@ -1,6 +1,9 @@
 import { Platform } from "react-native";
 
-import { upsertLocalLead } from "@/db/leadLocalService";
+import {
+  getLocalLeadById,
+  upsertLocalLead,
+} from "@/db/leadLocalService";
 import { getLeads } from "@/features/leads/leadService";
 
 export async function syncRemoteLeadsToLocal() {
@@ -13,6 +16,18 @@ export async function syncRemoteLeadsToLocal() {
   const now = new Date().toISOString();
 
   for (const lead of remoteLeads) {
+    const existingLocalLead = await getLocalLeadById(lead.id, lead.user_id);
+
+    if (existingLocalLead && existingLocalLead.sync_status !== "synced") {
+      console.log(
+        "Skipping remote cache for pending local lead",
+        existingLocalLead.id,
+        existingLocalLead.sync_status,
+      );
+
+      continue;
+    }
+
     await upsertLocalLead({
       id: lead.id,
       user_id: lead.user_id,

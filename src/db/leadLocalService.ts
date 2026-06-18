@@ -29,6 +29,7 @@ export type DebugLocalLeadRow = Pick<
   | "name"
   | "company"
   | "status"
+  | "notes"
   | "sync_status"
   | "last_synced_at"
   | "created_at"
@@ -92,6 +93,7 @@ export async function getDebugLocalLeads() {
         name,
         company,
         status,
+        notes,
         sync_status,
         last_synced_at,
         created_at,
