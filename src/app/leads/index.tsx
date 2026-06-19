@@ -12,7 +12,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
-import { getDebugLocalLeads } from "@/db/leadLocalService";
+import { getDebugLocalLeads, printPendingLocalLeads } from "@/db/leadLocalService";
 import { syncRemoteLeadsToLocal } from "@/db/leadLocalSync";
 import {
   localLeadKeys,
@@ -81,6 +81,10 @@ function WebLeadsScreen() {
     console.log("SQLite local database is not available on web.");
   }
 
+  function handlePrintPendingLocalLeads() {
+    console.log("SQLite pending local leads are not available on web.");
+  }
+
   return (
     <LeadsList
       leads={leads}
@@ -95,6 +99,7 @@ function WebLeadsScreen() {
       }}
       isRefreshing={isFetching}
       onPrintLocalSQLiteLeads={handlePrintLocalSQLiteLeads}
+      onPrintPendingLocalLeads={handlePrintPendingLocalLeads}
       onPrintSupabaseLeads={() => {
         void handlePrintSupabaseLeads();
       }}
@@ -170,6 +175,19 @@ function NativeLeadsScreen() {
     }
   }
 
+  async function handlePrintPendingLocalLeads() {
+    if (!userId) {
+      console.log("No user id found");
+      return;
+    }
+
+    try {
+      await printPendingLocalLeads(userId);
+    } catch (error) {
+      console.error("Failed to print pending local leads", error);
+    }
+  }
+
   return (
     <LeadsList
       leads={leads}
@@ -185,6 +203,9 @@ function NativeLeadsScreen() {
       isRefreshing={isRefreshingRemote}
       onPrintLocalSQLiteLeads={() => {
         void handlePrintLocalSQLiteLeads();
+      }}
+      onPrintPendingLocalLeads={() => {
+        void handlePrintPendingLocalLeads();
       }}
       onPrintSupabaseLeads={() => {
         void handlePrintSupabaseLeads();
@@ -207,6 +228,7 @@ type LeadsListProps = {
   onRefresh: () => void;
   isRefreshing: boolean;
   onPrintLocalSQLiteLeads: () => void;
+  onPrintPendingLocalLeads: () => void;
   onPrintSupabaseLeads: () => void;
 };
 
@@ -219,6 +241,7 @@ function LeadsList({
   onRefresh,
   isRefreshing,
   onPrintLocalSQLiteLeads,
+  onPrintPendingLocalLeads,
   onPrintSupabaseLeads,
 }: LeadsListProps) {
   const router = useRouter();
@@ -350,7 +373,6 @@ function LeadsList({
       </View>
 
       {shouldDisplayDebugTools ? (
-        // Temporary development-only tooling for Week 2 SQLite/offline testing.
         <View style={styles.debugToolsContainer}>
           <Text style={styles.debugToolsTitle}>Debug Tools</Text>
 
@@ -360,6 +382,15 @@ function LeadsList({
           >
             <Text style={styles.debugButtonText}>
               Print Local SQLite Leads
+            </Text>
+          </Pressable>
+
+          <Pressable
+            style={styles.debugButton}
+            onPress={onPrintPendingLocalLeads}
+          >
+            <Text style={styles.debugButtonText}>
+              Print Pending Local Leads
             </Text>
           </Pressable>
 

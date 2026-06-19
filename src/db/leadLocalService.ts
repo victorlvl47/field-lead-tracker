@@ -81,7 +81,51 @@ export async function getLocalLeads(userId: string) {
   );
 }
 
-// Temporary development-only query for Week 2 SQLite/offline testing.
+export async function getPendingLocalLeads(userId: string) {
+  const db = await getDatabase();
+
+  return db.getAllAsync<LocalLead>(
+    `
+      SELECT *
+      FROM leads
+      WHERE user_id = ?
+        AND sync_status IN ('pending_create', 'pending_update')
+      ORDER BY updated_at ASC;
+    `,
+    [userId],
+  );
+}
+
+export async function getPendingCreateLeads(userId: string) {
+  const db = await getDatabase();
+
+  return db.getAllAsync<LocalLead>(
+    `
+      SELECT *
+      FROM leads
+      WHERE user_id = ?
+        AND sync_status = 'pending_create'
+      ORDER BY updated_at ASC;
+    `,
+    [userId],
+  );
+}
+
+export async function getPendingUpdateLeads(userId: string) {
+  const db = await getDatabase();
+
+  return db.getAllAsync<LocalLead>(
+    `
+      SELECT *
+      FROM leads
+      WHERE user_id = ?
+        AND sync_status = 'pending_update'
+      ORDER BY updated_at ASC;
+    `,
+    [userId],
+  );
+}
+
 export async function getDebugLocalLeads() {
   const db = await getDatabase();
 
@@ -228,4 +272,36 @@ export async function updateLocalLead(input: UpdateLocalLeadInput) {
   await upsertLocalLead(updatedLead);
 
   return updatedLead;
+}
+
+export async function markLocalLeadSynced(
+  lead: Pick<LocalLead, "id" | "user_id">,
+) {
+  const db = await getDatabase();
+
+  const lastSyncedAt = new Date().toISOString();
+
+  await db.runAsync(
+    `
+      UPDATE leads
+      SET sync_status = 'synced',
+          last_synced_at = ?
+      WHERE id = ?
+        AND user_id = ?;
+    `,
+    [lastSyncedAt, lead.id, lead.user_id],
+  );
+
+  return getLocalLeadById(lead.id, lead.user_id);
+}
+
+export async function printPendingLocalLeads(userId: string) {
+  const pendingLeads = await getPendingLocalLeads(userId);
+
+  console.log(
+    "Pending local leads:",
+    JSON.stringify(pendingLeads, null, 2),
+  );
+
+  return pendingLeads;
 }
