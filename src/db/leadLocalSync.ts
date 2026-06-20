@@ -6,10 +6,21 @@ import {
 } from "@/db/leadLocalService";
 import { getLeads } from "@/features/leads/leadService";
 
-export async function syncRemoteLeadsToLocal() {
+export type RemoteToLocalSyncResult = {
+  remoteCount: number;
+  cachedCount: number;
+  skippedPendingCount: number;
+};
+
+export async function syncRemoteLeadsToLocal(): Promise<RemoteToLocalSyncResult> {
+  console.log("Platform:", Platform.OS);
   if (Platform.OS === "web") {
     console.log("Skipping remote leads cache on web");
-    return [];
+    return {
+      remoteCount: 0,
+      cachedCount: 0,
+      skippedPendingCount: 0,
+    };
   }
 
   const remoteLeads = await getLeads();
@@ -53,9 +64,13 @@ export async function syncRemoteLeadsToLocal() {
     cachedCount += 1;
   }
 
-  console.log(
-    `Cached ${cachedCount} remote leads in SQLite. Skipped ${skippedCount} pending local leads.`,
-  );
+  const result: RemoteToLocalSyncResult = {
+    remoteCount: remoteLeads.length,
+    cachedCount,
+    skippedPendingCount: skippedCount,
+  };
 
-  return remoteLeads;
+  console.log("Remote to local sync result", result);
+
+  return result;
 }
