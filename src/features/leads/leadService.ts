@@ -115,3 +115,29 @@ export async function insertLocalLeadIntoSupabase(
 
   return data;
 }
+
+export async function updateSupabaseLeadFromLocal(
+  lead: LocalLead
+): Promise<Lead> {
+  const { data, error } = await supabase
+    .from("leads")
+    .update({
+      name: lead.name,
+      company: lead.company,
+      phone: lead.phone,
+      email: lead.email,
+      status: lead.status,
+      notes: lead.notes,
+      updated_at: lead.updated_at,
+    })
+    .eq("id", lead.id)
+    .eq("user_id", lead.user_id)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+}

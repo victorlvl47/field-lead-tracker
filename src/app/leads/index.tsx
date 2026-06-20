@@ -28,7 +28,10 @@ import {
   useLeadFiltersStore,
 } from "@/store/leadFiltersStore";
 
-import { pushPendingCreateLeads } from "@/sync/leadSyncService";
+import {
+  pushPendingCreateLeads,
+  pushPendingUpdateLeads,
+} from "@/sync/leadSyncService";
 
 const statusFilters: LeadStatusFilter[] = [
   "all",
@@ -91,6 +94,10 @@ function WebLeadsScreen() {
     console.log("Push pending creates is not available on web.");
   }
 
+  function handlePushPendingUpdates() {
+    console.log("Push pending updates is not available on web.");
+  }
+
   return (
     <LeadsList
       leads={leads}
@@ -108,6 +115,8 @@ function WebLeadsScreen() {
       onPrintPendingLocalLeads={handlePrintPendingLocalLeads}
       onPushPendingCreates={handlePushPendingCreates}
       isPushingCreates={false}
+      onPushPendingUpdates={handlePushPendingUpdates}
+      isPushingUpdates={false}
       onPrintSupabaseLeads={() => {
         void handlePrintSupabaseLeads();
       }}
@@ -122,6 +131,7 @@ function NativeLeadsScreen() {
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   const [isRefreshingRemote, setIsRefreshingRemote] = useState(false);
   const [isPushingCreates, setIsPushingCreates] = useState(false);
+  const [isPushingUpdates, setIsPushingUpdates] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -220,6 +230,29 @@ function NativeLeadsScreen() {
     }
   }
 
+  async function handlePushPendingUpdates() {
+    if (!userId) {
+      console.log("No user id found");
+      return;
+    }
+
+    try {
+      setIsPushingUpdates(true);
+
+      const result = await pushPendingUpdateLeads(userId);
+
+      console.log("Push pending updates result", result);
+
+      await queryClient.invalidateQueries({
+        queryKey: localLeadKeys.list(userId),
+      });
+    } catch (error) {
+      console.error("Failed to push pending updates", error);
+    } finally {
+      setIsPushingUpdates(false);
+    }
+  }
+
   return (
     <LeadsList
       leads={leads}
@@ -246,6 +279,10 @@ function NativeLeadsScreen() {
         void handlePushPendingCreates();
       }}
       isPushingCreates={isPushingCreates}
+      onPushPendingUpdates={() => {
+        void handlePushPendingUpdates();
+      }}
+      isPushingUpdates={isPushingUpdates}
     />
   );
 }
@@ -268,6 +305,8 @@ type LeadsListProps = {
   onPrintSupabaseLeads: () => void;
   onPushPendingCreates: () => void;
   isPushingCreates: boolean;
+  onPushPendingUpdates: () => void;
+  isPushingUpdates: boolean;
 };
 
 function LeadsList({
@@ -283,6 +322,8 @@ function LeadsList({
   onPrintSupabaseLeads,
   onPushPendingCreates,
   isPushingCreates,
+  onPushPendingUpdates,
+  isPushingUpdates,
 }: LeadsListProps) {
   const router = useRouter();
   const searchText = useLeadFiltersStore((state) => state.searchText);
@@ -436,13 +477,6 @@ function LeadsList({
 
           <Pressable
             style={styles.debugButton}
-            onPress={onPrintSupabaseLeads}
-          >
-            <Text style={styles.debugButtonText}>Print Supabase Leads</Text>
-          </Pressable>
-
-          <Pressable
-            style={styles.debugButton}
             onPress={onPushPendingCreates}
             disabled={isPushingCreates}
           >
@@ -451,6 +485,22 @@ function LeadsList({
             </Text>
           </Pressable>
 
+          <Pressable
+            style={styles.debugButton}
+            onPress={onPushPendingUpdates}
+            disabled={isPushingUpdates}
+          >
+            <Text style={styles.debugButtonText}>
+              {isPushingUpdates ? "Pushing Updates..." : "Push Pending Updates"}
+            </Text>
+          </Pressable>
+
+          <Pressable
+            style={styles.debugButton}
+            onPress={onPrintSupabaseLeads}
+          >
+            <Text style={styles.debugButtonText}>Print Supabase Leads</Text>
+          </Pressable>
         </View>
       ) : null}
 

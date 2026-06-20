@@ -1,8 +1,12 @@
 import {
-    getPendingCreateLeads,
-    markLocalLeadSynced,
+  getPendingCreateLeads,
+  getPendingUpdateLeads,
+  markLocalLeadSynced,
 } from "@/db/leadLocalService";
-import { insertLocalLeadIntoSupabase } from "@/features/leads/leadService";
+import {
+  insertLocalLeadIntoSupabase,
+  updateSupabaseLeadFromLocal,
+} from "@/features/leads/leadService";
 
 type SyncError = {
   leadId: string;
@@ -12,6 +16,12 @@ type SyncError = {
 export type PushPendingCreateLeadsResult = {
   foundCreates: number;
   pushedCreates: number;
+  errors: SyncError[];
+};
+
+export type PushPendingUpdateLeadsResult = {
+  foundUpdates: number;
+  pushedUpdates: number;
   errors: SyncError[];
 };
 
@@ -59,6 +69,46 @@ export async function pushPendingCreateLeads(
   }
 
   console.log("Push pending_create result", result);
+
+  return result;
+}
+
+export async function pushPendingUpdateLeads(
+  userId: string,
+): Promise<PushPendingUpdateLeadsResult> {
+  const pendingUpdateLeads = await getPendingUpdateLeads(userId);
+
+  const result: PushPendingUpdateLeadsResult = {
+    foundUpdates: pendingUpdateLeads.length,
+    pushedUpdates: 0,
+    errors: [],
+  };
+
+  for (const lead of pendingUpdateLeads) {
+    try {
+      await updateSupabaseLeadFromLocal(lead);
+
+      await markLocalLeadSynced({
+        id: lead.id,
+        user_id: lead.user_id,
+      });
+
+      result.pushedUpdates += 1;
+
+      console.log("Pushed pending_update lead to Supabase", lead.id);
+    } catch (error) {
+      const message = getErrorMessage(error);
+
+      result.errors.push({
+        leadId: lead.id,
+        message,
+      });
+
+      console.error("Failed to push pending_update lead", lead.id, error);
+    }
+  }
+
+  console.log("Push pending_update result", result);
 
   return result;
 }
