@@ -1,3 +1,4 @@
+import type { LocalLead } from "@/db/leadLocalService";
 import { supabase } from "@/lib/supabase";
 import type { Lead, LeadFormValues } from "./leadTypes";
 
@@ -76,6 +77,35 @@ export async function updateLead(
       updated_at: new Date().toISOString(),
     })
     .eq("id", id)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+}
+
+export async function insertLocalLeadIntoSupabase(
+  lead: LocalLead
+): Promise<Lead> {
+  const { data, error } = await supabase
+    .from("leads")
+    .insert({
+      id: lead.id,
+      user_id: lead.user_id,
+
+      name: lead.name,
+      company: lead.company,
+      phone: lead.phone,
+      email: lead.email,
+      status: lead.status,
+      notes: lead.notes,
+
+      created_at: lead.created_at,
+      updated_at: lead.updated_at,
+    })
     .select()
     .single();
 
