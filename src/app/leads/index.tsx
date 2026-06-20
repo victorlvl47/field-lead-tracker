@@ -3,6 +3,7 @@ import {
   FlatList,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -326,6 +327,7 @@ function LeadsList({
   isPushingUpdates,
 }: LeadsListProps) {
   const router = useRouter();
+  const [areDebugToolsOpen, setAreDebugToolsOpen] = useState(false);
   const searchText = useLeadFiltersStore((state) => state.searchText);
   const statusFilter = useLeadFiltersStore((state) => state.statusFilter);
   const setSearchText = useLeadFiltersStore((state) => state.setSearchText);
@@ -455,52 +457,73 @@ function LeadsList({
 
       {shouldDisplayDebugTools ? (
         <View style={styles.debugToolsContainer}>
-          <Text style={styles.debugToolsTitle}>Debug Tools</Text>
-
           <Pressable
-            style={styles.debugButton}
-            onPress={onPrintLocalSQLiteLeads}
+            style={styles.debugToolsHeader}
+            onPress={() => setAreDebugToolsOpen((current) => !current)}
           >
-            <Text style={styles.debugButtonText}>
-              Print Local SQLite Leads
+            <Text style={styles.debugToolsTitle}>Debug Tools</Text>
+            <Text style={styles.debugToolsToggle}>
+              {areDebugToolsOpen ? "Hide" : "Show"}
             </Text>
           </Pressable>
 
-          <Pressable
-            style={styles.debugButton}
-            onPress={onPrintPendingLocalLeads}
-          >
-            <Text style={styles.debugButtonText}>
-              Print Pending Local Leads
-            </Text>
-          </Pressable>
+          {areDebugToolsOpen ? (
+            <ScrollView
+              style={styles.debugToolsScroll}
+              contentContainerStyle={styles.debugToolsContent}
+            >
+              <Pressable
+                style={styles.debugButton}
+                onPress={onPrintLocalSQLiteLeads}
+              >
+                <Text style={styles.debugButtonText}>
+                  Print Local SQLite Leads
+                </Text>
+              </Pressable>
 
-          <Pressable
-            style={styles.debugButton}
-            onPress={onPushPendingCreates}
-            disabled={isPushingCreates}
-          >
-            <Text style={styles.debugButtonText}>
-              {isPushingCreates ? "Pushing Creates..." : "Push Pending Creates"}
-            </Text>
-          </Pressable>
+              <Pressable
+                style={styles.debugButton}
+                onPress={onPrintPendingLocalLeads}
+              >
+                <Text style={styles.debugButtonText}>
+                  Print Pending Local Leads
+                </Text>
+              </Pressable>
 
-          <Pressable
-            style={styles.debugButton}
-            onPress={onPushPendingUpdates}
-            disabled={isPushingUpdates}
-          >
-            <Text style={styles.debugButtonText}>
-              {isPushingUpdates ? "Pushing Updates..." : "Push Pending Updates"}
-            </Text>
-          </Pressable>
+              <Pressable
+                style={styles.debugButton}
+                onPress={onPushPendingCreates}
+                disabled={isPushingCreates}
+              >
+                <Text style={styles.debugButtonText}>
+                  {isPushingCreates
+                    ? "Pushing Creates..."
+                    : "Push Pending Creates"}
+                </Text>
+              </Pressable>
 
-          <Pressable
-            style={styles.debugButton}
-            onPress={onPrintSupabaseLeads}
-          >
-            <Text style={styles.debugButtonText}>Print Supabase Leads</Text>
-          </Pressable>
+              <Pressable
+                style={styles.debugButton}
+                onPress={onPushPendingUpdates}
+                disabled={isPushingUpdates}
+              >
+                <Text style={styles.debugButtonText}>
+                  {isPushingUpdates
+                    ? "Pushing Updates..."
+                    : "Push Pending Updates"}
+                </Text>
+              </Pressable>
+
+              <Pressable
+                style={styles.debugButton}
+                onPress={onPrintSupabaseLeads}
+              >
+                <Text style={styles.debugButtonText}>
+                  Print Supabase Leads
+                </Text>
+              </Pressable>
+            </ScrollView>
+          ) : null}
         </View>
       ) : null}
 
@@ -702,14 +725,29 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#d4d4d8",
     borderRadius: 8,
-    gap: 8,
     marginBottom: 16,
     padding: 12,
+  },
+  debugToolsHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   debugToolsTitle: {
     color: "#18181b",
     fontSize: 14,
     fontWeight: "700",
+  },
+  debugToolsToggle: {
+    color: "#2563eb",
+    fontWeight: "700",
+  },
+  debugToolsScroll: {
+    maxHeight: 180,
+  },
+  debugToolsContent: {
+    gap: 8,
+    paddingTop: 8,
   },
   debugButton: {
     alignSelf: "flex-start",
