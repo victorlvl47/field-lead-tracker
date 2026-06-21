@@ -32,6 +32,7 @@ import {
 import {
   pushPendingCreateLeads,
   pushPendingUpdateLeads,
+  syncLeads,
 } from "@/sync/leadSyncService";
 
 const statusFilters: LeadStatusFilter[] = [
@@ -99,6 +100,10 @@ function WebLeadsScreen() {
     console.log("Push pending updates is not available on web.");
   }
 
+  function handleSyncNow() {
+    console.log("Lead sync is not available on web.");
+  }
+
   return (
     <LeadsList
       leads={leads}
@@ -118,6 +123,8 @@ function WebLeadsScreen() {
       isPushingCreates={false}
       onPushPendingUpdates={handlePushPendingUpdates}
       isPushingUpdates={false}
+      onSyncNow={handleSyncNow}
+      isSyncingLeads={false}
       onPrintSupabaseLeads={() => {
         void handlePrintSupabaseLeads();
       }}
@@ -133,6 +140,7 @@ function NativeLeadsScreen() {
   const [isRefreshingRemote, setIsRefreshingRemote] = useState(false);
   const [isPushingCreates, setIsPushingCreates] = useState(false);
   const [isPushingUpdates, setIsPushingUpdates] = useState(false);
+  const [isSyncingLeads, setIsSyncingLeads] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -254,6 +262,27 @@ function NativeLeadsScreen() {
     }
   }
 
+  async function handleSyncNow() {
+    if (!userId) {
+      console.log("No user id found");
+      return;
+    }
+
+    try {
+      setIsSyncingLeads(true);
+
+      await syncLeads(userId);
+
+      await queryClient.invalidateQueries({
+        queryKey: localLeadKeys.list(userId),
+      });
+    } catch (error) {
+      console.error("Failed to sync leads", error);
+    } finally {
+      setIsSyncingLeads(false);
+    }
+  }
+
   return (
     <LeadsList
       leads={leads}
@@ -284,6 +313,10 @@ function NativeLeadsScreen() {
         void handlePushPendingUpdates();
       }}
       isPushingUpdates={isPushingUpdates}
+      onSyncNow={() => {
+        void handleSyncNow();
+      }}
+      isSyncingLeads={isSyncingLeads}
     />
   );
 }
@@ -308,6 +341,8 @@ type LeadsListProps = {
   isPushingCreates: boolean;
   onPushPendingUpdates: () => void;
   isPushingUpdates: boolean;
+  onSyncNow: () => void;
+  isSyncingLeads: boolean;
 };
 
 function LeadsList({
@@ -325,6 +360,8 @@ function LeadsList({
   isPushingCreates,
   onPushPendingUpdates,
   isPushingUpdates,
+  onSyncNow,
+  isSyncingLeads,
 }: LeadsListProps) {
   const router = useRouter();
   const [areDebugToolsOpen, setAreDebugToolsOpen] = useState(false);
@@ -511,6 +548,16 @@ function LeadsList({
                   {isPushingUpdates
                     ? "Pushing Updates..."
                     : "Push Pending Updates"}
+                </Text>
+              </Pressable>
+
+              <Pressable
+                style={styles.debugButton}
+                onPress={onSyncNow}
+                disabled={isSyncingLeads}
+              >
+                <Text style={styles.debugButtonText}>
+                  {isSyncingLeads ? "Syncing..." : "Sync Now"}
                 </Text>
               </Pressable>
 

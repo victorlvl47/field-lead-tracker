@@ -13,7 +13,6 @@ export type RemoteToLocalSyncResult = {
 };
 
 export async function syncRemoteLeadsToLocal(): Promise<RemoteToLocalSyncResult> {
-  console.log("Platform:", Platform.OS);
   if (Platform.OS === "web") {
     console.log("Skipping remote leads cache on web");
     return {

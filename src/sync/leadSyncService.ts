@@ -4,6 +4,10 @@ import {
   markLocalLeadSynced,
 } from "@/db/leadLocalService";
 import {
+  syncRemoteLeadsToLocal,
+  type RemoteToLocalSyncResult,
+} from "@/db/leadLocalSync";
+import {
   insertLocalLeadIntoSupabase,
   updateSupabaseLeadFromLocal,
 } from "@/features/leads/leadService";
@@ -23,6 +27,12 @@ export type PushPendingUpdateLeadsResult = {
   foundUpdates: number;
   pushedUpdates: number;
   errors: SyncError[];
+};
+
+export type LeadSyncResult = {
+  creates: PushPendingCreateLeadsResult;
+  updates: PushPendingUpdateLeadsResult;
+  pull: RemoteToLocalSyncResult;
 };
 
 function getErrorMessage(error: unknown) {
@@ -69,6 +79,22 @@ export async function pushPendingCreateLeads(
   }
 
   console.log("Push pending_create result", result);
+
+  return result;
+}
+
+export async function syncLeads(userId: string): Promise<LeadSyncResult> {
+  const creates = await pushPendingCreateLeads(userId);
+  const updates = await pushPendingUpdateLeads(userId);
+  const pull = await syncRemoteLeadsToLocal();
+
+  const result: LeadSyncResult = {
+    creates,
+    updates,
+    pull,
+  };
+
+  console.log("Lead sync result", result);
 
   return result;
 }
