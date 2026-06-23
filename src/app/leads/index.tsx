@@ -132,6 +132,7 @@ function WebLeadsScreen() {
       onSyncNow={handleSyncNow}
       isSyncingLeads={false}
       networkStatus={networkStatus.status}
+      syncFeedbackMessage={null}
       onPrintSupabaseLeads={() => {
         void handlePrintSupabaseLeads();
       }}
@@ -149,6 +150,9 @@ function NativeLeadsScreen() {
   const [isPushingCreates, setIsPushingCreates] = useState(false);
   const [isPushingUpdates, setIsPushingUpdates] = useState(false);
   const [isSyncingLeads, setIsSyncingLeads] = useState(false);
+  const [syncFeedbackMessage, setSyncFeedbackMessage] = useState<string | null>(
+    null,
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -271,15 +275,23 @@ function NativeLeadsScreen() {
   }
 
   async function handleSyncNow() {
+    setSyncFeedbackMessage(null);
+
     if (networkStatus.isClearlyOffline) {
-      console.log(
-        "Cannot sync leads because the device appears to be offline.",
-      );
+      const message =
+        "Cannot sync leads because the device appears to be offline.";
+
+      console.log(message);
+      setSyncFeedbackMessage(message);
       return;
     }
 
     if (!userId) {
-      console.log("No user id found");
+      const message =
+        "Cannot sync leads because no user session was found.";
+
+      console.log(message);
+      setSyncFeedbackMessage(message);
       return;
     }
 
@@ -293,6 +305,7 @@ function NativeLeadsScreen() {
       });
     } catch (error) {
       console.error("Failed to sync leads", error);
+      setSyncFeedbackMessage("Failed to sync leads. Please try again.");
     } finally {
       setIsSyncingLeads(false);
     }
@@ -333,6 +346,7 @@ function NativeLeadsScreen() {
       }}
       isSyncingLeads={isSyncingLeads}
       networkStatus={networkStatus.status}
+      syncFeedbackMessage={syncFeedbackMessage}
     />
   );
 }
@@ -360,6 +374,7 @@ type LeadsListProps = {
   onSyncNow: () => void;
   isSyncingLeads: boolean;
   networkStatus: NetworkStatus;
+  syncFeedbackMessage: string | null;
 };
 
 function LeadsList({
@@ -380,6 +395,7 @@ function LeadsList({
   onSyncNow,
   isSyncingLeads,
   networkStatus,
+  syncFeedbackMessage,
 }: LeadsListProps) {
   const router = useRouter();
   const [areDebugToolsOpen, setAreDebugToolsOpen] = useState(false);
@@ -476,6 +492,10 @@ function LeadsList({
             ? "Online"
             : "Offline"}
       </Text>
+
+      {syncFeedbackMessage ? (
+        <Text style={styles.syncFeedbackErrorText}>{syncFeedbackMessage}</Text>
+      ) : null}
 
       <View style={styles.filtersContainer}>
         <TextInput
@@ -758,6 +778,11 @@ const styles = StyleSheet.create({
   },
   networkStatusText: {
     color: "#52525b",
+    fontWeight: "600",
+    marginBottom: 12,
+  },
+  syncFeedbackErrorText: {
+    color: "#dc2626",
     fontWeight: "600",
     marginBottom: 12,
   },
