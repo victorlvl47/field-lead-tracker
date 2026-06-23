@@ -22,6 +22,10 @@ import {
 import { useLeadsQuery } from "@/features/leads/leadQueries";
 import { getLeads } from "@/features/leads/leadService";
 import type { Lead } from "@/features/leads/leadTypes";
+import {
+  type NetworkStatus,
+  useNetworkStatus,
+} from "@/hooks/useNetworkStatus";
 import { supabase } from "@/lib/supabase";
 
 import {
@@ -75,6 +79,8 @@ export default function LeadsScreen() {
 }
 
 function WebLeadsScreen() {
+  const networkStatus = useNetworkStatus();
+
   const {
     data: leads = [],
     isLoading,
@@ -125,6 +131,7 @@ function WebLeadsScreen() {
       isPushingUpdates={false}
       onSyncNow={handleSyncNow}
       isSyncingLeads={false}
+      networkStatus={networkStatus.status}
       onPrintSupabaseLeads={() => {
         void handlePrintSupabaseLeads();
       }}
@@ -134,6 +141,7 @@ function WebLeadsScreen() {
 
 function NativeLeadsScreen() {
   const queryClient = useQueryClient();
+  const networkStatus = useNetworkStatus();
 
   const [userId, setUserId] = useState<string | null>(null);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
@@ -263,6 +271,13 @@ function NativeLeadsScreen() {
   }
 
   async function handleSyncNow() {
+    if (networkStatus.isClearlyOffline) {
+      console.log(
+        "Cannot sync leads because the device appears to be offline.",
+      );
+      return;
+    }
+
     if (!userId) {
       console.log("No user id found");
       return;
@@ -317,6 +332,7 @@ function NativeLeadsScreen() {
         void handleSyncNow();
       }}
       isSyncingLeads={isSyncingLeads}
+      networkStatus={networkStatus.status}
     />
   );
 }
@@ -343,6 +359,7 @@ type LeadsListProps = {
   isPushingUpdates: boolean;
   onSyncNow: () => void;
   isSyncingLeads: boolean;
+  networkStatus: NetworkStatus;
 };
 
 function LeadsList({
@@ -362,6 +379,7 @@ function LeadsList({
   isPushingUpdates,
   onSyncNow,
   isSyncingLeads,
+  networkStatus,
 }: LeadsListProps) {
   const router = useRouter();
   const [areDebugToolsOpen, setAreDebugToolsOpen] = useState(false);
@@ -449,6 +467,15 @@ function LeadsList({
           </Pressable>
         </View>
       </View>
+
+      <Text style={styles.networkStatusText}>
+        Network:{" "}
+        {networkStatus === "unknown"
+          ? "Checking..."
+          : networkStatus === "online"
+            ? "Online"
+            : "Offline"}
+      </Text>
 
       <View style={styles.filtersContainer}>
         <TextInput
@@ -728,6 +755,11 @@ const styles = StyleSheet.create({
   filtersContainer: {
     gap: 12,
     marginBottom: 16,
+  },
+  networkStatusText: {
+    color: "#52525b",
+    fontWeight: "600",
+    marginBottom: 12,
   },
   searchInput: {
     borderWidth: 1,
