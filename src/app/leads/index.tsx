@@ -177,6 +177,12 @@ function NativeLeadsScreen() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!networkStatus.isClearlyOffline) {
+      setSyncFeedbackMessage(null);
+    }
+  }, [networkStatus.isClearlyOffline]);
+
   const {
     data: leads = [],
     isLoading,
