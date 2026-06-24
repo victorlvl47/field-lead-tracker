@@ -60,6 +60,23 @@ const statusFilterLabels: Record<LeadStatusFilter, string> = {
   lost: "Lost",
 };
 
+function getSyncStatusLabel(syncStatus?: string | null): string | null {
+  switch (syncStatus) {
+    case "synced":
+      return "Synced";
+    case "pending_create":
+      return "Pending create";
+    case "pending_update":
+      return "Pending update";
+    case "conflict":
+      return "Sync conflict";
+    case "sync_error":
+      return "Sync error";
+    default:
+      return null;
+  }
+}
+
 // Expo only exposes environment variables prefixed with EXPO_PUBLIC_ to client code.
 const shouldDisplayDebugTools =
   process.env.EXPO_PUBLIC_DISPLAY_DEBUG_TOOLS === "true";
@@ -420,7 +437,9 @@ function NativeLeadsScreen() {
 type LeadListItem = Pick<
   Lead,
   "id" | "name" | "company" | "phone" | "email" | "status"
->;
+> & {
+  sync_status?: string | null;
+};
 
 type LeadsListProps = {
   leads: LeadListItem[];
@@ -726,25 +745,35 @@ function LeadsList({
             </Text>
           </View>
         }
-        renderItem={({ item }) => (
-          <Link
-            href={{
-              pathname: "/leads/[id]",
-              params: { id: item.id },
-            }}
-            asChild
-          >
-            <Pressable style={styles.card}>
-              <Text style={styles.leadName}>{item.name}</Text>
+        renderItem={({ item }) => {
+          const syncStatusLabel = getSyncStatusLabel(item.sync_status);
 
-              {item.company ? (
-                <Text style={styles.company}>{item.company}</Text>
-              ) : null}
+          return (
+            <Link
+              href={{
+                pathname: "/leads/[id]",
+                params: { id: item.id },
+              }}
+              asChild
+            >
+              <Pressable style={styles.card}>
+                <Text style={styles.leadName}>{item.name}</Text>
 
-              <Text style={styles.status}>{item.status}</Text>
-            </Pressable>
-          </Link>
-        )}
+                {item.company ? (
+                  <Text style={styles.company}>{item.company}</Text>
+                ) : null}
+
+                <Text style={styles.status}>{item.status}</Text>
+
+                {syncStatusLabel ? (
+                  <Text style={styles.leadSyncStatus}>
+                    {syncStatusLabel}
+                  </Text>
+                ) : null}
+              </Pressable>
+            </Link>
+          );
+        }}
       />
     </View>
   );
@@ -823,6 +852,11 @@ const styles = StyleSheet.create({
     color: "#2563eb",
     fontWeight: "600",
     textTransform: "capitalize",
+  },
+  leadSyncStatus: {
+    marginTop: 2,
+    fontSize: 12,
+    opacity: 0.75,
   },
   emptyState: {
     flex: 1,
