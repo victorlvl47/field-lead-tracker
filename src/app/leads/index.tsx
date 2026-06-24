@@ -1,6 +1,5 @@
 import { Link, useRouter } from "expo-router";
 import {
-  Button,
   FlatList,
   Platform,
   Pressable,
@@ -679,15 +678,23 @@ function LeadsList({
                 </Text>
               </Pressable>
 
-              <Button
-                title="Mark First Lead as Conflict"
+              <Pressable
+                style={styles.debugButton}
                 onPress={onMarkFirstLeadAsConflict}
-              />
+              >
+                <Text style={styles.debugButtonText}>
+                  Mark First Lead as Conflict
+                </Text>
+              </Pressable>
 
-              <Button
-                title="Show Conflict Local Leads"
+              <Pressable
+                style={styles.debugButton}
                 onPress={onShowConflictLeads}
-              />
+              >
+                <Text style={styles.debugButtonText}>
+                  Show Conflict Local Leads
+                </Text>
+              </Pressable>
 
               <Pressable
                 style={styles.debugButton}
