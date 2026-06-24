@@ -15,9 +15,9 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
 import {
-  getConflictLocalLeads,
   getDebugLocalLeads,
   markLocalLeadConflict,
+  printConflictLocalLeads,
   printPendingLocalLeads,
 } from "@/db/leadLocalService";
 import { syncRemoteLeadsToLocal } from "@/db/leadLocalSync";
@@ -257,9 +257,7 @@ function NativeLeadsScreen() {
     }
 
     try {
-      const conflicts = await getConflictLocalLeads(userId);
-
-      console.log("Conflict local leads:", conflicts);
+      await printConflictLocalLeads(userId);
     } catch (error) {
       console.error("Failed to show conflict local leads", error);
     }

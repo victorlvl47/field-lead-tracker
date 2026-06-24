@@ -131,7 +131,9 @@ export async function getPendingUpdateLeads(userId: string) {
   );
 }
 
-export async function getConflictLocalLeads(userId: string) {
+export async function getConflictLocalLeads(
+  userId: string,
+): Promise<LocalLead[]> {
   const db = await getDatabase();
 
   return db.getAllAsync<LocalLead>(
@@ -146,7 +148,9 @@ export async function getConflictLocalLeads(userId: string) {
   );
 }
 
-export async function getSyncErrorLocalLeads(userId: string) {
+export async function getSyncErrorLocalLeads(
+  userId: string,
+): Promise<LocalLead[]> {
   const db = await getDatabase();
 
   return db.getAllAsync<LocalLead>(
@@ -330,7 +334,10 @@ export async function markLocalLeadSynced(
   return getLocalLeadById(lead.id, lead.user_id);
 }
 
-export async function markLocalLeadConflict(id: string, userId: string) {
+export async function markLocalLeadConflict(
+  id: string,
+  userId: string,
+): Promise<void> {
   const db = await getDatabase();
 
   await db.runAsync(
@@ -344,7 +351,10 @@ export async function markLocalLeadConflict(id: string, userId: string) {
   );
 }
 
-export async function markLocalLeadSyncFailed(id: string, userId: string) {
+export async function markLocalLeadSyncFailed(
+  id: string,
+  userId: string,
+): Promise<void> {
   const db = await getDatabase();
 
   await db.runAsync(
@@ -367,4 +377,12 @@ export async function printPendingLocalLeads(userId: string) {
   );
 
   return pendingLeads;
+}
+
+export async function printConflictLocalLeads(
+  userId: string,
+): Promise<void> {
+  const conflictLeads = await getConflictLocalLeads(userId);
+
+  console.log("Conflict local leads:", conflictLeads);
 }
