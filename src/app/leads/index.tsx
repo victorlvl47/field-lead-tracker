@@ -1,5 +1,6 @@
 import { Link, useRouter } from "expo-router";
 import {
+  Button,
   FlatList,
   Platform,
   Pressable,
@@ -13,7 +14,12 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
-import { getDebugLocalLeads, printPendingLocalLeads } from "@/db/leadLocalService";
+import {
+  getConflictLocalLeads,
+  getDebugLocalLeads,
+  markLocalLeadConflict,
+  printPendingLocalLeads,
+} from "@/db/leadLocalService";
 import { syncRemoteLeadsToLocal } from "@/db/leadLocalSync";
 import {
   localLeadKeys,
@@ -110,6 +116,14 @@ function WebLeadsScreen() {
     console.log("Lead sync is not available on web.");
   }
 
+  function handleShowConflictLeads() {
+    console.log("SQLite conflict local leads are not available on web.");
+  }
+
+  function handleMarkFirstLeadAsConflict() {
+    console.log("Mark first lead as conflict is not available on web.");
+  }
+
   return (
     <LeadsList
       leads={leads}
@@ -131,6 +145,8 @@ function WebLeadsScreen() {
       isPushingUpdates={false}
       onSyncNow={handleSyncNow}
       isSyncingLeads={false}
+      onMarkFirstLeadAsConflict={handleMarkFirstLeadAsConflict}
+      onShowConflictLeads={handleShowConflictLeads}
       networkStatus={networkStatus.status}
       syncFeedbackMessage={null}
       onPrintSupabaseLeads={() => {
@@ -231,6 +247,47 @@ function NativeLeadsScreen() {
       await printPendingLocalLeads(userId);
     } catch (error) {
       console.error("Failed to print pending local leads", error);
+    }
+  }
+
+  async function handleShowConflictLeads() {
+    if (!userId) {
+      console.log("No user id found");
+      return;
+    }
+
+    try {
+      const conflicts = await getConflictLocalLeads(userId);
+
+      console.log("Conflict local leads:", conflicts);
+    } catch (error) {
+      console.error("Failed to show conflict local leads", error);
+    }
+  }
+
+  async function handleMarkFirstLeadAsConflict() {
+    if (!userId) {
+      console.log("No user id found");
+      return;
+    }
+
+    const firstLead = leads[0];
+
+    if (!firstLead) {
+      console.log("No local leads found to mark as conflict.");
+      return;
+    }
+
+    try {
+      await markLocalLeadConflict(firstLead.id, userId);
+
+      console.log("Marked local lead as conflict", firstLead.id);
+
+      await queryClient.invalidateQueries({
+        queryKey: localLeadKeys.list(userId),
+      });
+    } catch (error) {
+      console.error("Failed to mark first local lead as conflict", error);
     }
   }
 
@@ -351,6 +408,12 @@ function NativeLeadsScreen() {
         void handleSyncNow();
       }}
       isSyncingLeads={isSyncingLeads}
+      onMarkFirstLeadAsConflict={() => {
+        void handleMarkFirstLeadAsConflict();
+      }}
+      onShowConflictLeads={() => {
+        void handleShowConflictLeads();
+      }}
       networkStatus={networkStatus.status}
       syncFeedbackMessage={syncFeedbackMessage}
     />
@@ -379,6 +442,8 @@ type LeadsListProps = {
   isPushingUpdates: boolean;
   onSyncNow: () => void;
   isSyncingLeads: boolean;
+  onMarkFirstLeadAsConflict: () => void;
+  onShowConflictLeads: () => void;
   networkStatus: NetworkStatus;
   syncFeedbackMessage: string | null;
 };
@@ -400,6 +465,8 @@ function LeadsList({
   isPushingUpdates,
   onSyncNow,
   isSyncingLeads,
+  onMarkFirstLeadAsConflict,
+  onShowConflictLeads,
   networkStatus,
   syncFeedbackMessage,
 }: LeadsListProps) {
@@ -613,6 +680,16 @@ function LeadsList({
                   {isSyncingLeads ? "Syncing..." : "Sync Now"}
                 </Text>
               </Pressable>
+
+              <Button
+                title="Mark First Lead as Conflict"
+                onPress={onMarkFirstLeadAsConflict}
+              />
+
+              <Button
+                title="Show Conflict Local Leads"
+                onPress={onShowConflictLeads}
+              />
 
               <Pressable
                 style={styles.debugButton}

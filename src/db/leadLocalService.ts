@@ -2,7 +2,12 @@ import { getDatabase } from "@/db/database";
 import type { LeadStatus } from "@/features/leads/leadTypes";
 import * as Crypto from "expo-crypto";
 
-export type LocalSyncStatus = "synced" | "pending_create" | "pending_update";
+export type LocalSyncStatus =
+  | "synced"
+  | "pending_create"
+  | "pending_update"
+  | "conflict"
+  | "sync_error";
 
 export type LocalLead = {
   id: string;
@@ -121,6 +126,36 @@ export async function getPendingUpdateLeads(userId: string) {
       WHERE user_id = ?
         AND sync_status = 'pending_update'
       ORDER BY updated_at ASC;
+    `,
+    [userId],
+  );
+}
+
+export async function getConflictLocalLeads(userId: string) {
+  const db = await getDatabase();
+
+  return db.getAllAsync<LocalLead>(
+    `
+      SELECT *
+      FROM leads
+      WHERE user_id = ?
+        AND sync_status = 'conflict'
+      ORDER BY updated_at DESC;
+    `,
+    [userId],
+  );
+}
+
+export async function getSyncErrorLocalLeads(userId: string) {
+  const db = await getDatabase();
+
+  return db.getAllAsync<LocalLead>(
+    `
+      SELECT *
+      FROM leads
+      WHERE user_id = ?
+        AND sync_status = 'sync_error'
+      ORDER BY updated_at DESC;
     `,
     [userId],
   );
@@ -293,6 +328,34 @@ export async function markLocalLeadSynced(
   );
 
   return getLocalLeadById(lead.id, lead.user_id);
+}
+
+export async function markLocalLeadConflict(id: string, userId: string) {
+  const db = await getDatabase();
+
+  await db.runAsync(
+    `
+      UPDATE leads
+      SET sync_status = 'conflict'
+      WHERE id = ?
+        AND user_id = ?;
+    `,
+    [id, userId],
+  );
+}
+
+export async function markLocalLeadSyncFailed(id: string, userId: string) {
+  const db = await getDatabase();
+
+  await db.runAsync(
+    `
+      UPDATE leads
+      SET sync_status = 'sync_error'
+      WHERE id = ?
+        AND user_id = ?;
+    `,
+    [id, userId],
+  );
 }
 
 export async function printPendingLocalLeads(userId: string) {
