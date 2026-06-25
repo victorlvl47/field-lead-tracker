@@ -1,6 +1,7 @@
 import {
   getPendingCreateLeads,
   getPendingUpdateLeads,
+  markLocalLeadConflict,
   markLocalLeadSynced,
 } from "@/db/leadLocalService";
 import {
@@ -8,6 +9,7 @@ import {
   type RemoteToLocalSyncResult,
 } from "@/db/leadLocalSync";
 import {
+  getRemoteLeadByIdForUser,
   insertLocalLeadIntoSupabase,
   updateSupabaseLeadFromLocal,
 } from "@/features/leads/leadService";
@@ -26,6 +28,7 @@ export type PushPendingCreateLeadsResult = {
 export type PushPendingUpdateLeadsResult = {
   foundUpdates: number;
   pushedUpdates: number;
+  conflicts: number;
   errors: SyncError[];
 };
 
@@ -107,11 +110,34 @@ export async function pushPendingUpdateLeads(
   const result: PushPendingUpdateLeadsResult = {
     foundUpdates: pendingUpdateLeads.length,
     pushedUpdates: 0,
+    conflicts: 0,
     errors: [],
   };
 
   for (const lead of pendingUpdateLeads) {
     try {
+      console.log("Checking pending update for conflicts", lead.id);
+
+      const remoteLead = await getRemoteLeadByIdForUser(lead.id, userId);
+
+      if (remoteLead && lead.last_synced_at) {
+        const remoteUpdatedAtMs = new Date(remoteLead.updated_at).getTime();
+        const lastSyncedAtMs = new Date(lead.last_synced_at).getTime();
+
+        const remoteChangedAfterLastSync = remoteUpdatedAtMs > lastSyncedAtMs;
+
+        if (remoteChangedAfterLastSync) {
+          await markLocalLeadConflict(lead.id, userId);
+
+          result.conflicts += 1;
+
+          console.log("Detected sync conflict for lead", lead.id);
+          console.log("Skipping push for conflicted lead", lead.id);
+
+          continue;
+        }
+      }
+
       await updateSupabaseLeadFromLocal(lead);
 
       await markLocalLeadSynced({

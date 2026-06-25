@@ -29,6 +29,24 @@ export async function getLeadById(id: string): Promise<Lead> {
   return data;
 }
 
+export async function getRemoteLeadByIdForUser(
+  id: string,
+  userId: string,
+): Promise<Lead | null> {
+  const { data, error } = await supabase
+    .from("leads")
+    .select("*")
+    .eq("id", id)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data ?? null;
+}
+
 export async function createLead(values: LeadFormValues): Promise<Lead> {
   const { data: userData, error: userError } = await supabase.auth.getUser();
 
