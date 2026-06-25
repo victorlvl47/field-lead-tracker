@@ -9,7 +9,7 @@ import { getLeads } from "@/features/leads/leadService";
 export type RemoteToLocalSyncResult = {
   remoteCount: number;
   cachedCount: number;
-  skippedPendingCount: number;
+  skippedNonSyncedCount: number;
 };
 
 export async function syncRemoteLeadsToLocal(): Promise<RemoteToLocalSyncResult> {
@@ -18,7 +18,7 @@ export async function syncRemoteLeadsToLocal(): Promise<RemoteToLocalSyncResult>
     return {
       remoteCount: 0,
       cachedCount: 0,
-      skippedPendingCount: 0,
+      skippedNonSyncedCount: 0,
     };
   }
 
@@ -34,7 +34,7 @@ export async function syncRemoteLeadsToLocal(): Promise<RemoteToLocalSyncResult>
       skippedCount += 1;
 
       console.log(
-        "Skipping remote cache for pending local lead",
+        "Skipping remote cache for non-synced local lead",
         existingLocalLead.id,
         existingLocalLead.sync_status,
       );
@@ -66,7 +66,7 @@ export async function syncRemoteLeadsToLocal(): Promise<RemoteToLocalSyncResult>
   const result: RemoteToLocalSyncResult = {
     remoteCount: remoteLeads.length,
     cachedCount,
-    skippedPendingCount: skippedCount,
+    skippedNonSyncedCount: skippedCount,
   };
 
   console.log("Remote to local sync result", result);
