@@ -46,6 +46,20 @@ function getErrorMessage(error: unknown) {
   return String(error);
 }
 
+function isRemoteLeadNewerThanLastSync(
+  remoteUpdatedAt: string,
+  lastSyncedAt: string,
+): boolean {
+  const remoteUpdatedAtMs = new Date(remoteUpdatedAt).getTime();
+  const lastSyncedAtMs = new Date(lastSyncedAt).getTime();
+
+  if (Number.isNaN(remoteUpdatedAtMs) || Number.isNaN(lastSyncedAtMs)) {
+    return false;
+  }
+
+  return remoteUpdatedAtMs > lastSyncedAtMs;
+}
+
 export async function pushPendingCreateLeads(
   userId: string,
 ): Promise<PushPendingCreateLeadsResult> {
@@ -121,10 +135,16 @@ export async function pushPendingUpdateLeads(
       const remoteLead = await getRemoteLeadByIdForUser(lead.id, userId);
 
       if (remoteLead && lead.last_synced_at) {
-        const remoteUpdatedAtMs = new Date(remoteLead.updated_at).getTime();
-        const lastSyncedAtMs = new Date(lead.last_synced_at).getTime();
+        console.log("Conflict timestamp check", {
+          leadId: lead.id,
+          remoteUpdatedAt: remoteLead.updated_at,
+          lastSyncedAt: lead.last_synced_at,
+        });
 
-        const remoteChangedAfterLastSync = remoteUpdatedAtMs > lastSyncedAtMs;
+        const remoteChangedAfterLastSync = isRemoteLeadNewerThanLastSync(
+          remoteLead.updated_at,
+          lead.last_synced_at,
+        );
 
         if (remoteChangedAfterLastSync) {
           await markLocalLeadConflict(lead.id, userId);
