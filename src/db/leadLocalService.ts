@@ -337,7 +337,7 @@ export async function markLocalLeadSynced(
 export async function replaceLocalLeadWithRemoteLead(
   lead: Lead,
   userId: string,
-) {
+): Promise<LocalLead> {
   if (lead.user_id !== userId) {
     throw new Error("Remote lead does not belong to the current user.");
   }
