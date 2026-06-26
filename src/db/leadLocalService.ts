@@ -1,5 +1,5 @@
 import { getDatabase } from "@/db/database";
-import type { LeadStatus } from "@/features/leads/leadTypes";
+import type { Lead, LeadStatus } from "@/features/leads/leadTypes";
 import * as Crypto from "expo-crypto";
 
 export type LocalSyncStatus =
@@ -332,6 +332,106 @@ export async function markLocalLeadSynced(
   );
 
   return getLocalLeadById(lead.id, lead.user_id);
+}
+
+export async function replaceLocalLeadWithRemoteLead(
+  lead: Lead,
+  userId: string,
+) {
+  if (lead.user_id !== userId) {
+    throw new Error("Remote lead does not belong to the current user.");
+  }
+
+  const db = await getDatabase();
+  const lastSyncedAt = new Date().toISOString();
+  const existingLead = await getLocalLeadById(lead.id, userId);
+
+  const syncedLead: LocalLead = {
+    id: lead.id,
+    user_id: userId,
+
+    name: lead.name,
+    company: lead.company ?? null,
+    phone: lead.phone ?? null,
+    email: lead.email ?? null,
+    status: lead.status,
+    notes: lead.notes ?? null,
+
+    created_at: lead.created_at,
+    updated_at: lead.updated_at,
+
+    sync_status: "synced",
+    last_synced_at: lastSyncedAt,
+  };
+
+  if (existingLead) {
+    await db.runAsync(
+      `
+        UPDATE leads
+        SET name = ?,
+            company = ?,
+            phone = ?,
+            email = ?,
+            status = ?,
+            notes = ?,
+            created_at = ?,
+            updated_at = ?,
+            sync_status = 'synced',
+            last_synced_at = ?
+        WHERE id = ?
+          AND user_id = ?;
+      `,
+      [
+        syncedLead.name,
+        syncedLead.company,
+        syncedLead.phone,
+        syncedLead.email,
+        syncedLead.status,
+        syncedLead.notes,
+        syncedLead.created_at,
+        syncedLead.updated_at,
+        syncedLead.last_synced_at,
+        syncedLead.id,
+        syncedLead.user_id,
+      ],
+    );
+  } else {
+    await db.runAsync(
+      `
+        INSERT INTO leads (
+          id,
+          user_id,
+          name,
+          company,
+          phone,
+          email,
+          status,
+          notes,
+          created_at,
+          updated_at,
+          sync_status,
+          last_synced_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+      `,
+      [
+        syncedLead.id,
+        syncedLead.user_id,
+        syncedLead.name,
+        syncedLead.company,
+        syncedLead.phone,
+        syncedLead.email,
+        syncedLead.status,
+        syncedLead.notes,
+        syncedLead.created_at,
+        syncedLead.updated_at,
+        syncedLead.sync_status,
+        syncedLead.last_synced_at,
+      ],
+    );
+  }
+
+  return syncedLead;
 }
 
 export async function markLocalLeadConflict(

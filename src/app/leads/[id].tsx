@@ -15,6 +15,10 @@ import {
 } from "@/features/leads/leadQueries";
 import type { LeadFormValues } from "@/features/leads/leadTypes";
 import { supabase } from "@/lib/supabase";
+import {
+  resolveLeadConflict,
+  type LeadConflictResolutionStrategy,
+} from "@/sync/leadConflictService";
 
 function normalizeValues(values: LeadFormValues): LeadFormValues {
   return {
@@ -162,7 +166,9 @@ function NativeEditLeadScreen({ id }: { id: string }) {
   const [userId, setUserId] = useState<string | null>(null);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isResolvingConflict, setIsResolvingConflict] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -211,6 +217,7 @@ function NativeEditLeadScreen({ id }: { id: string }) {
     try {
       setIsSubmitting(true);
       setErrorMessage(null);
+      setSuccessMessage(null);
 
       await updateLocalLead({
         id,
@@ -239,6 +246,46 @@ function NativeEditLeadScreen({ id }: { id: string }) {
       );
     } finally {
       setIsSubmitting(false);
+    }
+  }
+
+  async function handleResolveConflict(
+    strategy: LeadConflictResolutionStrategy,
+  ) {
+    if (!userId) {
+      return;
+    }
+
+    try {
+      setIsResolvingConflict(true);
+      setErrorMessage(null);
+      setSuccessMessage(null);
+
+      await resolveLeadConflict(userId, id, strategy);
+
+      await queryClient.invalidateQueries({
+        queryKey: localLeadKeys.detail(id, userId),
+      });
+
+      await queryClient.invalidateQueries({
+        queryKey: localLeadKeys.list(userId),
+      });
+
+      if (strategy === "keep_local") {
+        setSuccessMessage("Local version kept.");
+        console.log("Resolved lead conflict with local version", id);
+      } else {
+        setSuccessMessage("Remote version applied.");
+        console.log("Resolved lead conflict with remote version", id);
+      }
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Failed to resolve lead conflict.",
+      );
+    } finally {
+      setIsResolvingConflict(false);
     }
   }
 
@@ -293,6 +340,7 @@ function NativeEditLeadScreen({ id }: { id: string }) {
     status: leadQuery.data.status,
     notes: leadQuery.data.notes ?? "",
   };
+  const hasConflict = leadQuery.data.sync_status === "conflict";
 
   return (
     <View style={styles.container}>
@@ -302,10 +350,58 @@ function NativeEditLeadScreen({ id }: { id: string }) {
         <Text style={styles.errorText}>{errorMessage}</Text>
       ) : null}
 
+      {successMessage ? (
+        <Text style={styles.successText}>{successMessage}</Text>
+      ) : null}
+
+      {hasConflict ? (
+        <View style={styles.conflictBox}>
+          <Text style={styles.conflictTitle}>
+            This lead has a sync conflict.
+          </Text>
+          <Text style={styles.conflictText}>
+            Choose which version should win.
+          </Text>
+
+          <View style={styles.conflictActions}>
+            <Pressable
+              style={[
+                styles.conflictPrimaryButton,
+                isResolvingConflict && styles.disabledButton,
+              ]}
+              onPress={() => {
+                void handleResolveConflict("keep_local");
+              }}
+              disabled={isResolvingConflict}
+            >
+              <Text style={styles.conflictPrimaryButtonText}>
+                Keep Local Version
+              </Text>
+            </Pressable>
+
+            <Pressable
+              style={[
+                styles.conflictSecondaryButton,
+                isResolvingConflict && styles.disabledButton,
+              ]}
+              onPress={() => {
+                void handleResolveConflict("use_remote");
+              }}
+              disabled={isResolvingConflict}
+            >
+              <Text style={styles.conflictSecondaryButtonText}>
+                Use Remote Version
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      ) : null}
+
       <LeadForm
+        key={`${leadQuery.data.id}-${leadQuery.data.updated_at}-${leadQuery.data.sync_status}`}
         initialValues={initialValues}
         submitLabel="Save Changes"
-        isSubmitting={isSubmitting}
+        isSubmitting={isSubmitting || isResolvingConflict}
         onSubmit={handleSubmit}
       />
     </View>
@@ -340,6 +436,12 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     textAlign: "center",
   },
+  successText: {
+    color: "#15803d",
+    fontWeight: "600",
+    marginBottom: 12,
+    textAlign: "center",
+  },
   secondaryButton: {
     borderWidth: 1,
     borderColor: "#2563eb",
@@ -350,5 +452,49 @@ const styles = StyleSheet.create({
   secondaryButtonText: {
     color: "#2563eb",
     fontWeight: "700",
+  },
+  conflictBox: {
+    borderWidth: 1,
+    borderColor: "#f59e0b",
+    borderRadius: 8,
+    padding: 14,
+    marginBottom: 16,
+    backgroundColor: "#fffbeb",
+  },
+  conflictTitle: {
+    color: "#92400e",
+    fontWeight: "700",
+    marginBottom: 4,
+  },
+  conflictText: {
+    color: "#92400e",
+    marginBottom: 12,
+  },
+  conflictActions: {
+    gap: 10,
+  },
+  conflictPrimaryButton: {
+    backgroundColor: "#2563eb",
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  conflictPrimaryButtonText: {
+    color: "#ffffff",
+    fontWeight: "700",
+  },
+  conflictSecondaryButton: {
+    borderWidth: 1,
+    borderColor: "#2563eb",
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  conflictSecondaryButtonText: {
+    color: "#2563eb",
+    fontWeight: "700",
+  },
+  disabledButton: {
+    opacity: 0.6,
   },
 });

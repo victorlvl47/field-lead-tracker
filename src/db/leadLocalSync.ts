@@ -2,7 +2,7 @@ import { Platform } from "react-native";
 
 import {
   getLocalLeadById,
-  upsertLocalLead,
+  replaceLocalLeadWithRemoteLead,
 } from "@/db/leadLocalService";
 import { getLeads } from "@/features/leads/leadService";
 
@@ -23,7 +23,6 @@ export async function syncRemoteLeadsToLocal(): Promise<RemoteToLocalSyncResult>
   }
 
   const remoteLeads = await getLeads();
-  const now = new Date().toISOString();
   let cachedCount = 0;
   let skippedCount = 0;
 
@@ -42,23 +41,7 @@ export async function syncRemoteLeadsToLocal(): Promise<RemoteToLocalSyncResult>
       continue;
     }
 
-    await upsertLocalLead({
-      id: lead.id,
-      user_id: lead.user_id,
-
-      name: lead.name,
-      company: lead.company ?? null,
-      phone: lead.phone ?? null,
-      email: lead.email ?? null,
-      status: lead.status,
-      notes: lead.notes ?? null,
-
-      created_at: lead.created_at,
-      updated_at: lead.updated_at,
-
-      sync_status: "synced",
-      last_synced_at: now,
-    });
+    await replaceLocalLeadWithRemoteLead(lead, lead.user_id);
 
     cachedCount += 1;
   }
