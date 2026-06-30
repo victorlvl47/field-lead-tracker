@@ -45,3 +45,6 @@ example
 # generated native folders
 /ios
 /android
+
+# Supabase local/temp files
+supabase/.temp/
