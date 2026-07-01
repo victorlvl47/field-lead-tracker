@@ -154,7 +154,17 @@ function WebLeadsScreen() {
     try {
       setIsSyncingLatestLeadToCrm(true);
 
-      const result = await syncLeadToCrm(latestLead);
+      const crmLead = {
+        id: latestLead.id,
+        name: latestLead.name,
+        company: latestLead.company,
+        email: latestLead.email,
+        phone: latestLead.phone,
+        status: latestLead.status,
+        notes: latestLead.notes,
+      };
+
+      const result = await syncLeadToCrm(crmLead);
 
       if (result.success) {
         console.log("Fake CRM sync result", result);
@@ -462,7 +472,17 @@ function NativeLeadsScreen() {
     try {
       setIsSyncingLatestLeadToCrm(true);
 
-      const result = await syncLeadToCrm(latestSyncedLead);
+      const crmLead = {
+        id: latestSyncedLead.id,
+        name: latestSyncedLead.name,
+        company: latestSyncedLead.company,
+        email: latestSyncedLead.email,
+        phone: latestSyncedLead.phone,
+        status: latestSyncedLead.status,
+        notes: latestSyncedLead.notes,
+      };
+
+      const result = await syncLeadToCrm(crmLead);
 
       if (result.success) {
         console.log("Fake CRM sync result", result);
