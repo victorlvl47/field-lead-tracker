@@ -20,6 +20,7 @@ import {
   printPendingLocalLeads,
 } from "@/db/leadLocalService";
 import { syncRemoteLeadsToLocal } from "@/db/leadLocalSync";
+import { syncLeadToCrm } from "@/features/crm/crmService";
 import {
   localLeadKeys,
   useLocalLeadsQuery,
@@ -102,6 +103,11 @@ export default function LeadsScreen() {
 
 function WebLeadsScreen() {
   const networkStatus = useNetworkStatus();
+  const [isSyncingLatestLeadToCrm, setIsSyncingLatestLeadToCrm] =
+    useState(false);
+  const [crmFeedbackMessage, setCrmFeedbackMessage] = useState<string | null>(
+    null,
+  );
 
   const {
     data: leads = [],
@@ -130,6 +136,36 @@ function WebLeadsScreen() {
 
   function handleSyncNow() {
     console.log("Lead sync is not available on web.");
+  }
+
+  async function handleSyncLatestLeadToCrm() {
+    setCrmFeedbackMessage(null);
+
+    const latestLead = leads[0];
+
+    if (!latestLead) {
+      const message = "No lead found to send to CRM.";
+
+      console.log(message);
+      setCrmFeedbackMessage(message);
+      return;
+    }
+
+    try {
+      setIsSyncingLatestLeadToCrm(true);
+
+      const result = await syncLeadToCrm(latestLead);
+
+      if (result.success) {
+        console.log("Fake CRM sync result", result);
+        setCrmFeedbackMessage(`CRM sync success: ${result.crmId}`);
+      }
+    } catch (error) {
+      console.error("Failed to sync latest lead to CRM", error);
+      setCrmFeedbackMessage("Failed to sync latest lead to CRM.");
+    } finally {
+      setIsSyncingLatestLeadToCrm(false);
+    }
   }
 
   function handleShowConflictLeads() {
@@ -161,6 +197,11 @@ function WebLeadsScreen() {
       isPushingUpdates={false}
       onSyncNow={handleSyncNow}
       isSyncingLeads={false}
+      onSyncLatestLeadToCrm={() => {
+        void handleSyncLatestLeadToCrm();
+      }}
+      isSyncingLatestLeadToCrm={isSyncingLatestLeadToCrm}
+      crmFeedbackMessage={crmFeedbackMessage}
       onMarkFirstLeadAsConflict={handleMarkFirstLeadAsConflict}
       onShowConflictLeads={handleShowConflictLeads}
       networkStatus={networkStatus.status}
@@ -182,7 +223,12 @@ function NativeLeadsScreen() {
   const [isPushingCreates, setIsPushingCreates] = useState(false);
   const [isPushingUpdates, setIsPushingUpdates] = useState(false);
   const [isSyncingLeads, setIsSyncingLeads] = useState(false);
+  const [isSyncingLatestLeadToCrm, setIsSyncingLatestLeadToCrm] =
+    useState(false);
   const [syncFeedbackMessage, setSyncFeedbackMessage] = useState<string | null>(
+    null,
+  );
+  const [crmFeedbackMessage, setCrmFeedbackMessage] = useState<string | null>(
     null,
   );
 
@@ -212,6 +258,7 @@ function NativeLeadsScreen() {
   useEffect(() => {
     if (!networkStatus.isClearlyOffline) {
       setSyncFeedbackMessage(null);
+      setCrmFeedbackMessage(null);
     }
   }, [networkStatus.isClearlyOffline]);
 
@@ -388,6 +435,47 @@ function NativeLeadsScreen() {
     }
   }
 
+  async function handleSyncLatestLeadToCrm() {
+    setCrmFeedbackMessage(null);
+
+    if (networkStatus.isClearlyOffline) {
+      const message =
+        "Cannot sync lead to CRM because the device appears to be offline.";
+
+      console.log(message);
+      setCrmFeedbackMessage(message);
+      return;
+    }
+
+    const latestSyncedLead = leads.find(
+      (lead: LeadListItem) => lead.sync_status === "synced",
+    );
+
+    if (!latestSyncedLead) {
+      const message = "No synced lead found to send to CRM.";
+
+      console.log(message);
+      setCrmFeedbackMessage(message);
+      return;
+    }
+
+    try {
+      setIsSyncingLatestLeadToCrm(true);
+
+      const result = await syncLeadToCrm(latestSyncedLead);
+
+      if (result.success) {
+        console.log("Fake CRM sync result", result);
+        setCrmFeedbackMessage(`CRM sync success: ${result.crmId}`);
+      }
+    } catch (error) {
+      console.error("Failed to sync latest lead to CRM", error);
+      setCrmFeedbackMessage("Failed to sync latest lead to CRM.");
+    } finally {
+      setIsSyncingLatestLeadToCrm(false);
+    }
+  }
+
   return (
     <LeadsList
       leads={leads}
@@ -422,6 +510,11 @@ function NativeLeadsScreen() {
         void handleSyncNow();
       }}
       isSyncingLeads={isSyncingLeads}
+      onSyncLatestLeadToCrm={() => {
+        void handleSyncLatestLeadToCrm();
+      }}
+      isSyncingLatestLeadToCrm={isSyncingLatestLeadToCrm}
+      crmFeedbackMessage={crmFeedbackMessage}
       onMarkFirstLeadAsConflict={() => {
         void handleMarkFirstLeadAsConflict();
       }}
@@ -436,7 +529,7 @@ function NativeLeadsScreen() {
 
 type LeadListItem = Pick<
   Lead,
-  "id" | "name" | "company" | "phone" | "email" | "status"
+  "id" | "name" | "company" | "phone" | "email" | "status" | "notes"
 > & {
   sync_status?: string | null;
 };
@@ -458,6 +551,9 @@ type LeadsListProps = {
   isPushingUpdates: boolean;
   onSyncNow: () => void;
   isSyncingLeads: boolean;
+  onSyncLatestLeadToCrm: () => void;
+  isSyncingLatestLeadToCrm: boolean;
+  crmFeedbackMessage: string | null;
   onMarkFirstLeadAsConflict: () => void;
   onShowConflictLeads: () => void;
   networkStatus: NetworkStatus;
@@ -481,6 +577,9 @@ function LeadsList({
   isPushingUpdates,
   onSyncNow,
   isSyncingLeads,
+  onSyncLatestLeadToCrm,
+  isSyncingLatestLeadToCrm,
+  crmFeedbackMessage,
   onMarkFirstLeadAsConflict,
   onShowConflictLeads,
   networkStatus,
@@ -584,6 +683,10 @@ function LeadsList({
 
       {syncFeedbackMessage ? (
         <Text style={styles.syncFeedbackErrorText}>{syncFeedbackMessage}</Text>
+      ) : null}
+
+      {crmFeedbackMessage ? (
+        <Text style={styles.crmFeedbackText}>{crmFeedbackMessage}</Text>
       ) : null}
 
       <View style={styles.filtersContainer}>
@@ -694,6 +797,18 @@ function LeadsList({
               >
                 <Text style={styles.debugButtonText}>
                   {isSyncingLeads ? "Syncing..." : "Sync Now"}
+                </Text>
+              </Pressable>
+
+              <Pressable
+                style={styles.debugButton}
+                onPress={onSyncLatestLeadToCrm}
+                disabled={isSyncingLatestLeadToCrm}
+              >
+                <Text style={styles.debugButtonText}>
+                  {isSyncingLatestLeadToCrm
+                    ? "Syncing Latest Lead to CRM..."
+                    : "Sync Latest Lead to CRM"}
                 </Text>
               </Pressable>
 
@@ -905,6 +1020,11 @@ const styles = StyleSheet.create({
   },
   syncFeedbackErrorText: {
     color: "#dc2626",
+    fontWeight: "600",
+    marginBottom: 12,
+  },
+  crmFeedbackText: {
+    color: "#166534",
     fontWeight: "600",
     marginBottom: 12,
   },
