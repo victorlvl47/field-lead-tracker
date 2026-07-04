@@ -7,6 +7,7 @@ import {
   getRemoteLeadByIdForUser,
   updateSupabaseLeadFromLocal,
 } from "@/features/leads/leadService";
+import { captureAppError } from "@/lib/sentry";
 
 export type LeadConflictResolutionStrategy = "keep_local" | "use_remote";
 
@@ -72,6 +73,7 @@ export async function resolveLeadConflict(
     return result;
   } catch (error) {
     console.error("Failed to resolve lead conflict", error);
+    captureAppError(error);
     throw error;
   }
 }

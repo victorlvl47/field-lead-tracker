@@ -5,6 +5,7 @@ import {
   replaceLocalLeadWithRemoteLead,
 } from "@/db/leadLocalService";
 import { getLeads } from "@/features/leads/leadService";
+import { captureAppError } from "@/lib/sentry";
 
 export type RemoteToLocalSyncResult = {
   remoteCount: number;
@@ -22,37 +23,43 @@ export async function syncRemoteLeadsToLocal(): Promise<RemoteToLocalSyncResult>
     };
   }
 
-  const remoteLeads = await getLeads();
-  let cachedCount = 0;
-  let skippedCount = 0;
+  try {
+    const remoteLeads = await getLeads();
+    let cachedCount = 0;
+    let skippedCount = 0;
 
-  for (const lead of remoteLeads) {
-    const existingLocalLead = await getLocalLeadById(lead.id, lead.user_id);
+    for (const lead of remoteLeads) {
+      const existingLocalLead = await getLocalLeadById(lead.id, lead.user_id);
 
-    if (existingLocalLead && existingLocalLead.sync_status !== "synced") {
-      skippedCount += 1;
+      if (existingLocalLead && existingLocalLead.sync_status !== "synced") {
+        skippedCount += 1;
 
-      console.log(
-        "Skipping remote cache for non-synced local lead",
-        existingLocalLead.id,
-        existingLocalLead.sync_status,
-      );
+        console.log(
+          "Skipping remote cache for non-synced local lead",
+          existingLocalLead.id,
+          existingLocalLead.sync_status,
+        );
 
-      continue;
+        continue;
+      }
+
+      await replaceLocalLeadWithRemoteLead(lead, lead.user_id);
+
+      cachedCount += 1;
     }
 
-    await replaceLocalLeadWithRemoteLead(lead, lead.user_id);
+    const result: RemoteToLocalSyncResult = {
+      remoteCount: remoteLeads.length,
+      cachedCount,
+      skippedNonSyncedCount: skippedCount,
+    };
 
-    cachedCount += 1;
+    console.log("Remote to local sync result", result);
+
+    return result;
+  } catch (error) {
+    console.error("Failed to sync remote leads to local SQLite", error);
+    captureAppError(error);
+    throw error;
   }
-
-  const result: RemoteToLocalSyncResult = {
-    remoteCount: remoteLeads.length,
-    cachedCount,
-    skippedNonSyncedCount: skippedCount,
-  };
-
-  console.log("Remote to local sync result", result);
-
-  return result;
 }

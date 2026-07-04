@@ -13,6 +13,7 @@ import {
   insertLocalLeadIntoSupabase,
   updateSupabaseLeadFromLocal,
 } from "@/features/leads/leadService";
+import { captureAppError } from "@/lib/sentry";
 
 type SyncError = {
   leadId: string;
@@ -92,6 +93,7 @@ export async function pushPendingCreateLeads(
       });
 
       console.error("Failed to push pending_create lead", lead.id, error);
+      captureAppError(error);
     }
   }
 
@@ -101,19 +103,25 @@ export async function pushPendingCreateLeads(
 }
 
 export async function syncLeads(userId: string): Promise<LeadSyncResult> {
-  const creates = await pushPendingCreateLeads(userId);
-  const updates = await pushPendingUpdateLeads(userId);
-  const pull = await syncRemoteLeadsToLocal();
+  try {
+    const creates = await pushPendingCreateLeads(userId);
+    const updates = await pushPendingUpdateLeads(userId);
+    const pull = await syncRemoteLeadsToLocal();
 
-  const result: LeadSyncResult = {
-    creates,
-    updates,
-    pull,
-  };
+    const result: LeadSyncResult = {
+      creates,
+      updates,
+      pull,
+    };
 
-  console.log("Lead sync result", result);
+    console.log("Lead sync result", result);
 
-  return result;
+    return result;
+  } catch (error) {
+    console.error("Unexpected lead sync failure", error);
+    captureAppError(error);
+    throw error;
+  }
 }
 
 export async function pushPendingUpdateLeads(
@@ -177,6 +185,7 @@ export async function pushPendingUpdateLeads(
       });
 
       console.error("Failed to push pending_update lead", lead.id, error);
+      captureAppError(error);
     }
   }
 
