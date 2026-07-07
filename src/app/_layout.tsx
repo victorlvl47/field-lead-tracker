@@ -1,4 +1,5 @@
 import { QueryClientProvider } from "@tanstack/react-query";
+import * as Sentry from "@sentry/react-native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
@@ -6,8 +7,11 @@ import { ActivityIndicator, View } from "react-native";
 
 import { initDatabase } from "@/db/database";
 import { queryClient } from "@/lib/queryClient";
+import { initSentry } from "@/lib/sentry";
 
-export default function RootLayout() {
+initSentry();
+
+function RootLayout() {
   const [isDatabaseReady, setIsDatabaseReady] = useState(false);
 
   useEffect(() => {
@@ -57,3 +61,5 @@ export default function RootLayout() {
     </QueryClientProvider>
   );
 }
+
+export default Sentry.wrap(RootLayout);

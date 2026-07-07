@@ -33,6 +33,7 @@ import {
   useNetworkStatus,
 } from "@/hooks/useNetworkStatus";
 import { supabase } from "@/lib/supabase";
+import { sendTestSentryError } from "@/lib/sentry";
 
 import {
   type LeadStatusFilter,
@@ -108,6 +109,9 @@ function WebLeadsScreen() {
   const [crmFeedbackMessage, setCrmFeedbackMessage] = useState<string | null>(
     null,
   );
+  const [sentryFeedbackMessage, setSentryFeedbackMessage] = useState<
+    string | null
+  >(null);
 
   const {
     data: leads = [],
@@ -178,6 +182,16 @@ function WebLeadsScreen() {
     }
   }
 
+  function handleSendTestSentryError() {
+    try {
+      sendTestSentryError();
+      setSentryFeedbackMessage("Test Sentry error sent.");
+    } catch (error) {
+      console.error("Failed to send test Sentry error", error);
+      setSentryFeedbackMessage("Failed to send test Sentry error.");
+    }
+  }
+
   function handleShowConflictLeads() {
     console.log("SQLite conflict local leads are not available on web.");
   }
@@ -212,6 +226,8 @@ function WebLeadsScreen() {
       }}
       isSyncingLatestLeadToCrm={isSyncingLatestLeadToCrm}
       crmFeedbackMessage={crmFeedbackMessage}
+      sentryFeedbackMessage={sentryFeedbackMessage}
+      onSendTestSentryError={handleSendTestSentryError}
       onMarkFirstLeadAsConflict={handleMarkFirstLeadAsConflict}
       onShowConflictLeads={handleShowConflictLeads}
       networkStatus={networkStatus.status}
@@ -241,6 +257,9 @@ function NativeLeadsScreen() {
   const [crmFeedbackMessage, setCrmFeedbackMessage] = useState<string | null>(
     null,
   );
+  const [sentryFeedbackMessage, setSentryFeedbackMessage] = useState<
+    string | null
+  >(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -269,6 +288,7 @@ function NativeLeadsScreen() {
     if (!networkStatus.isClearlyOffline) {
       setSyncFeedbackMessage(null);
       setCrmFeedbackMessage(null);
+      setSentryFeedbackMessage(null);
     }
   }, [networkStatus.isClearlyOffline]);
 
@@ -496,6 +516,16 @@ function NativeLeadsScreen() {
     }
   }
 
+  function handleSendTestSentryError() {
+    try {
+      sendTestSentryError();
+      setSentryFeedbackMessage("Test Sentry error sent.");
+    } catch (error) {
+      console.error("Failed to send test Sentry error", error);
+      setSentryFeedbackMessage("Failed to send test Sentry error.");
+    }
+  }
+
   return (
     <LeadsList
       leads={leads}
@@ -535,6 +565,8 @@ function NativeLeadsScreen() {
       }}
       isSyncingLatestLeadToCrm={isSyncingLatestLeadToCrm}
       crmFeedbackMessage={crmFeedbackMessage}
+      sentryFeedbackMessage={sentryFeedbackMessage}
+      onSendTestSentryError={handleSendTestSentryError}
       onMarkFirstLeadAsConflict={() => {
         void handleMarkFirstLeadAsConflict();
       }}
@@ -574,6 +606,8 @@ type LeadsListProps = {
   onSyncLatestLeadToCrm: () => void;
   isSyncingLatestLeadToCrm: boolean;
   crmFeedbackMessage: string | null;
+  sentryFeedbackMessage: string | null;
+  onSendTestSentryError: () => void;
   onMarkFirstLeadAsConflict: () => void;
   onShowConflictLeads: () => void;
   networkStatus: NetworkStatus;
@@ -600,6 +634,8 @@ function LeadsList({
   onSyncLatestLeadToCrm,
   isSyncingLatestLeadToCrm,
   crmFeedbackMessage,
+  sentryFeedbackMessage,
+  onSendTestSentryError,
   onMarkFirstLeadAsConflict,
   onShowConflictLeads,
   networkStatus,
@@ -707,6 +743,10 @@ function LeadsList({
 
       {crmFeedbackMessage ? (
         <Text style={styles.crmFeedbackText}>{crmFeedbackMessage}</Text>
+      ) : null}
+
+      {sentryFeedbackMessage ? (
+        <Text style={styles.crmFeedbackText}>{sentryFeedbackMessage}</Text>
       ) : null}
 
       <View style={styles.filtersContainer}>
@@ -829,6 +869,15 @@ function LeadsList({
                   {isSyncingLatestLeadToCrm
                     ? "Syncing Latest Lead to CRM..."
                     : "Sync Latest Lead to CRM"}
+                </Text>
+              </Pressable>
+
+              <Pressable
+                style={styles.debugButton}
+                onPress={onSendTestSentryError}
+              >
+                <Text style={styles.debugButtonText}>
+                  Send Test Sentry Error
                 </Text>
               </Pressable>
 
