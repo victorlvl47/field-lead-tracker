@@ -14,6 +14,7 @@ import {
   updateSupabaseLeadFromLocal,
 } from "@/features/leads/leadService";
 import { captureAppError } from "@/lib/sentry";
+import { isRemoteNewerThanLastSync } from "@/sync/conflictUtils";
 
 type SyncError = {
   leadId: string;
@@ -45,20 +46,6 @@ function getErrorMessage(error: unknown) {
   }
 
   return String(error);
-}
-
-function isRemoteLeadNewerThanLastSync(
-  remoteUpdatedAt: string,
-  lastSyncedAt: string,
-): boolean {
-  const remoteUpdatedAtMs = new Date(remoteUpdatedAt).getTime();
-  const lastSyncedAtMs = new Date(lastSyncedAt).getTime();
-
-  if (Number.isNaN(remoteUpdatedAtMs) || Number.isNaN(lastSyncedAtMs)) {
-    return false;
-  }
-
-  return remoteUpdatedAtMs > lastSyncedAtMs;
 }
 
 export async function pushPendingCreateLeads(
@@ -149,7 +136,7 @@ export async function pushPendingUpdateLeads(
           lastSyncedAt: lead.last_synced_at,
         });
 
-        const remoteChangedAfterLastSync = isRemoteLeadNewerThanLastSync(
+        const remoteChangedAfterLastSync = isRemoteNewerThanLastSync(
           remoteLead.updated_at,
           lead.last_synced_at,
         );
