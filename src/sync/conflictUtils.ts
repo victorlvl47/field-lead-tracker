@@ -16,9 +16,13 @@ export function isRemoteNewerThanLastSync(
   return remoteUpdatedAtMs > lastSyncedAtMs;
 }
 
-export function shouldMarkPendingUpdateAsConflict(input: {
+type PendingUpdateConflictInput = {
   remoteUpdatedAt: string | null | undefined;
   lastSyncedAt: string | null | undefined;
-}): boolean {
+};
+
+export function shouldMarkPendingUpdateAsConflict(
+  input: PendingUpdateConflictInput,
+): boolean {
   return isRemoteNewerThanLastSync(input.remoteUpdatedAt, input.lastSyncedAt);
 }
