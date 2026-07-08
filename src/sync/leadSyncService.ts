@@ -14,7 +14,7 @@ import {
   updateSupabaseLeadFromLocal,
 } from "@/features/leads/leadService";
 import { captureAppError } from "@/lib/sentry";
-import { isRemoteNewerThanLastSync } from "@/sync/conflictUtils";
+import { shouldMarkPendingUpdateAsConflict } from "@/sync/conflictUtils";
 
 type SyncError = {
   leadId: string;
@@ -136,12 +136,12 @@ export async function pushPendingUpdateLeads(
           lastSyncedAt: lead.last_synced_at,
         });
 
-        const remoteChangedAfterLastSync = isRemoteNewerThanLastSync(
-          remoteLead.updated_at,
-          lead.last_synced_at,
-        );
+        const hasPendingUpdateConflict = shouldMarkPendingUpdateAsConflict({
+          remoteUpdatedAt: remoteLead.updated_at,
+          lastSyncedAt: lead.last_synced_at,
+        });
 
-        if (remoteChangedAfterLastSync) {
+        if (hasPendingUpdateConflict) {
           await markLocalLeadConflict(lead.id, userId);
 
           result.conflicts += 1;
