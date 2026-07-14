@@ -138,10 +138,13 @@ describe("pushPendingUpdateLeads", () => {
     const updateError = new Error("Supabase update failed");
 
     vi.mocked(getPendingUpdateLeads).mockResolvedValue(leads);
-    vi.mocked(getRemoteLeadByIdForUser).mockResolvedValue({
-      id: "remote-lead",
-      updated_at: "2026-07-06T12:00:00.000Z",
-    } as any);
+    vi.mocked(getRemoteLeadByIdForUser).mockImplementation(
+      async (leadId) =>
+        ({
+          id: leadId,
+          updated_at: "2026-07-06T12:00:00.000Z",
+        }) as any,
+    );
     vi.mocked(shouldMarkPendingUpdateAsConflict).mockReturnValue(false);
     vi.mocked(updateSupabaseLeadFromLocal).mockImplementation(async (lead) => {
       if (lead.id === "lead-b") {
@@ -165,6 +168,8 @@ describe("pushPendingUpdateLeads", () => {
       ],
     });
     expect(getPendingUpdateLeads).toHaveBeenCalledWith(userId);
+    expect(getRemoteLeadByIdForUser).toHaveBeenCalledTimes(3);
+    expect(shouldMarkPendingUpdateAsConflict).toHaveBeenCalledTimes(3);
     expect(updateSupabaseLeadFromLocal).toHaveBeenCalledTimes(3);
     expect(markLocalLeadSynced).toHaveBeenCalledTimes(2);
     expect(markLocalLeadSynced).toHaveBeenCalledWith({
