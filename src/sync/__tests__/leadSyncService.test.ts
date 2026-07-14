@@ -1,13 +1,22 @@
 import type { LocalLead } from "@/db/leadLocalService";
 import {
   getPendingCreateLeads,
+  getPendingUpdateLeads,
   markLocalLeadSynced,
 } from "@/db/leadLocalService";
-import { insertLocalLeadIntoSupabase } from "@/features/leads/leadService";
+import {
+  getRemoteLeadByIdForUser,
+  insertLocalLeadIntoSupabase,
+  updateSupabaseLeadFromLocal,
+} from "@/features/leads/leadService";
 import { captureAppError } from "@/lib/sentry";
+import { shouldMarkPendingUpdateAsConflict } from "@/sync/conflictUtils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { pushPendingCreateLeads } from "../leadSyncService";
+import {
+  pushPendingCreateLeads,
+  pushPendingUpdateLeads,
+} from "../leadSyncService";
 
 vi.mock("@/db/leadLocalService", () => ({
   getPendingCreateLeads: vi.fn(),
@@ -50,6 +59,15 @@ function createPendingCreateLead(id: string): LocalLead {
     updated_at: "2026-07-06T12:00:00.000Z",
     sync_status: "pending_create",
     last_synced_at: null,
+  };
+}
+
+function createPendingUpdateLead(id: string): LocalLead {
+  return {
+    ...createPendingCreateLead(id),
+    updated_at: "2026-07-06T12:01:00.000Z",
+    sync_status: "pending_update",
+    last_synced_at: "2026-07-06T12:00:00.000Z",
   };
 }
 
@@ -103,5 +121,65 @@ describe("pushPendingCreateLeads", () => {
     });
     expect(captureAppError).toHaveBeenCalledOnce();
     expect(captureAppError).toHaveBeenCalledWith(insertError);
+  });
+});
+
+describe("pushPendingUpdateLeads", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("records failed pending_update leads and continues syncing the rest", async () => {
+    const leads = [
+      createPendingUpdateLead("lead-a"),
+      createPendingUpdateLead("lead-b"),
+      createPendingUpdateLead("lead-c"),
+    ];
+    const updateError = new Error("Supabase update failed");
+
+    vi.mocked(getPendingUpdateLeads).mockResolvedValue(leads);
+    vi.mocked(getRemoteLeadByIdForUser).mockResolvedValue({
+      id: "remote-lead",
+      updated_at: "2026-07-06T12:00:00.000Z",
+    } as any);
+    vi.mocked(shouldMarkPendingUpdateAsConflict).mockReturnValue(false);
+    vi.mocked(updateSupabaseLeadFromLocal).mockImplementation(async (lead) => {
+      if (lead.id === "lead-b") {
+        throw updateError;
+      }
+
+      return lead;
+    });
+
+    const result = await pushPendingUpdateLeads(userId);
+
+    expect(result).toEqual({
+      foundUpdates: 3,
+      pushedUpdates: 2,
+      conflicts: 0,
+      errors: [
+        {
+          leadId: "lead-b",
+          message: "Supabase update failed",
+        },
+      ],
+    });
+    expect(getPendingUpdateLeads).toHaveBeenCalledWith(userId);
+    expect(updateSupabaseLeadFromLocal).toHaveBeenCalledTimes(3);
+    expect(markLocalLeadSynced).toHaveBeenCalledTimes(2);
+    expect(markLocalLeadSynced).toHaveBeenCalledWith({
+      id: "lead-a",
+      user_id: userId,
+    });
+    expect(markLocalLeadSynced).not.toHaveBeenCalledWith({
+      id: "lead-b",
+      user_id: userId,
+    });
+    expect(markLocalLeadSynced).toHaveBeenCalledWith({
+      id: "lead-c",
+      user_id: userId,
+    });
+    expect(captureAppError).toHaveBeenCalledOnce();
+    expect(captureAppError).toHaveBeenCalledWith(updateError);
   });
 });
