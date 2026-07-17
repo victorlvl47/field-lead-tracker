@@ -217,6 +217,28 @@ Run TypeScript checks:
 npx tsc --noEmit
 ```
 
+## Release flow
+
+This project uses EAS Build to define separate build profiles for development, internal testing, and production.
+
+### Build profiles
+
+* `development`: creates a development client build for local development and testing. Debug tools are enabled.
+* `preview`: creates an internal testing build for QA/demo testing. Debug tools are enabled so sync and local database behavior can be inspected.
+* `production`: creates a production-ready build for a future store release. Debug tools are disabled with `EXPO_PUBLIC_DISPLAY_DEBUG_TOOLS=false`.
+
+### Build commands
+
+```bash
+npx eas-cli build --profile development --platform android
+npx eas-cli build --profile preview --platform android
+npx eas-cli build --profile production --platform android
+```
+
+### Monitoring
+
+The app uses Sentry to capture app errors, including sync and fake CRM integration failures. In a real release flow, preview builds would be tested internally first, then production builds would be monitored through Sentry after release.
+
 ## Current Flow
 
 ```txt
