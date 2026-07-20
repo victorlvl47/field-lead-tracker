@@ -201,3 +201,14 @@ npx eas-cli build --profile production --platform android
 5. Sync again to push the update and refresh the local cache.
 6. To demonstrate a conflict, change the same remote lead after the device last synced, then sync the pending local update. Choose **Keep Local Version** or **Use Remote Version** on the edit screen.
 7. Send a synced lead through the fake CRM action and inspect Sentry/debug feedback as needed.
+
+
+## Next steps
+
+* Add delete sync support with `pending_delete` or soft deletes.
+* Add real end-to-end tests for the full offline sync flow.
+* Add background sync when the app reconnects.
+* Add a more advanced conflict merge UI.
+* Replace the fake CRM simulation with a real CRM integration after validating the flow.
+* Add tested iOS build steps and production app store metadata.
+
