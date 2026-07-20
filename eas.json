@@ -1,0 +1,30 @@
+{
+  "cli": {
+    "version": ">= 21.0.1",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_DISPLAY_DEBUG_TOOLS": "true"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_DISPLAY_DEBUG_TOOLS": "true"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_DISPLAY_DEBUG_TOOLS": "false"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}
