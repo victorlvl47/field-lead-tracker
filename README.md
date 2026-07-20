@@ -6,6 +6,23 @@ Field Lead Tracker is an Expo / React Native demo app for field sales or field m
 
 The project demonstrates a practical mobile data flow rather than only an online CRUD screen: local persistence, a sync queue, conflict detection and resolution, monitoring, and a simulated CRM handoff.
 
+## Screenshots
+
+| Login | Lead list |
+| --- | --- |
+| ![Login screen](./docs/screenshots/01-login.png) | ![Lead list](./docs/screenshots/02-lead-list.png) |
+| **Login** — Supabase authentication entry point. | **Lead list** — Searchable lead list with status filters and network status. |
+
+| Create lead | Pending sync |
+| --- | --- |
+| ![Create lead form](./docs/screenshots/03-create-lead.png) | ![Pending sync status](./docs/screenshots/04-pending-sync.png) |
+| **Create lead** — Lead form for capturing field sales information. | **Pending sync** — Local SQLite changes are queued until the user syncs. |
+
+| Conflict resolution | Debug tools |
+| --- | --- |
+| ![Conflict resolution](./docs/screenshots/05-conflict-resolution.png) | ![Debug tools](./docs/screenshots/06-debug-tools.png) |
+| **Conflict resolution** — The user chooses whether the local or remote version should win. | **Debug tools** — Internal build tools for testing sync, CRM simulation, and Sentry. |
+
 ## Why this project
 
 Field teams cannot assume a reliable connection. A rep should be able to record or update a lead in a parking lot, at an event, or between customer visits without losing work. This project explores how a small React Native app can keep that workflow responsive offline while still syncing securely to a central system when connectivity returns.
