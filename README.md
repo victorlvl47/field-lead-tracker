@@ -104,7 +104,7 @@ Opening a conflicted lead presents two choices:
 
 The app includes a fake CRM / HubSpot simulation, not a real HubSpot integration. From the leads screen, a synced lead can be sent to the Supabase Edge Function named `sync-lead-to-crm`. The client sends the lead payload to that function and displays the returned simulated CRM ID on success.
 
-This keeps the app-side shape of an external CRM handoff—request, response, and error handling—without claiming that a production HubSpot account or API integration exists. The action is disabled in practice when the device is clearly offline, and failures are captured by Sentry.
+This keeps the app-side shape of an external CRM handoff—request, response, and error handling—without claiming that a production HubSpot account or API integration exists. On native, the action checks network status before attempting the fake CRM sync, and failures are captured by Sentry.
 
 ## Sentry monitoring
 
