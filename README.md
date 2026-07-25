@@ -129,6 +129,8 @@ Sentry initializes when `EXPO_PUBLIC_SENTRY_DSN` is configured. The root app is 
 
 Development builds can use the debug control to send a deliberate test error. The DSN is documented in `.env.example`; it should be provided through environment configuration, not committed in `.env`.
 
+Preview builds set `SENTRY_DISABLE_AUTO_UPLOAD=true` for internal testing. This disables automatic Sentry source map upload during the EAS build, while runtime error reporting continues to work. Without source maps, stack traces point to the bundled/minified `index.android.bundle` and are harder to read. Production builds should configure Sentry credentials so source maps are uploaded and errors resolve to readable TypeScript/React Native source locations.
+
 ## Testing strategy
 
 Run the current test suite with:
@@ -143,6 +145,8 @@ The tests currently cover:
 - `pending_create` queue behavior: a failed row is recorded and later rows still sync.
 - `pending_update` queue behavior: a failed row is recorded and later rows still sync.
 - A basic `LeadForm` component submission.
+
+The app was tested on Android 15 device and tested on an Android 17. The Android APK validation covered Supabase environment variables, SQLite local storage, offline lead creation and updates, sync back to Supabase, conflict resolution, and Sentry test error reporting.
 
 ## Environment variables
 
@@ -184,6 +188,8 @@ EAS Build defines three build profiles in `eas.json`:
 
 Development and preview enable local debug tools. Production disables them with `EXPO_PUBLIC_DISPLAY_DEBUG_TOOLS=false` and uses EAS remote app-version management with auto-increment enabled.
 
+The `preview` profile also sets `SENTRY_DISABLE_AUTO_UPLOAD=true` so internal builds do not fail when Sentry source map upload credentials are unavailable. Configure Sentry credentials and source map upload for production builds to keep production stack traces readable.
+
 Example Android build commands:
 
 ```bash
@@ -211,4 +217,3 @@ npx eas-cli build --profile production --platform android
 * Add a more advanced conflict merge UI.
 * Replace the fake CRM simulation with a real CRM integration after validating the flow.
 * Add tested iOS build steps and production app store metadata.
-
