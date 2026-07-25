@@ -13,8 +13,12 @@
     },
     "preview": {
       "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
       "env": {
-        "EXPO_PUBLIC_DISPLAY_DEBUG_TOOLS": "true"
+        "EXPO_PUBLIC_DISPLAY_DEBUG_TOOLS": "true",
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
       }
     },
     "production": {
